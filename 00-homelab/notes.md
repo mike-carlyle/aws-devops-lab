@@ -52,6 +52,18 @@ I came into this having only used Docker through a GUI previously. Doing everyth
 
 ---
 
+## Improvements
+
+### Tailscale Magic DNS
+
+After getting Tailscale working for remote access I looked into making it easier to reach services without having to remember IP addresses and port combinations. One option was to buy a domain name and set up DNS records pointing to each service, something like jellyfin.mchomeserver.com. But a free option already existed within Tailscale itself.
+
+Enabling Magic DNS in the Tailscale settings automatically assigns a DNS name to each device on the Tailscale network based on the device name. So instead of connecting to 192.168.1.10:8096 for Jellyfin, I can now use mchomeserver:8096 which is much more practical, especially when accessing multiple services remotely.
+
+It took a few minutes to set up and required no additional configuration on the server itself.
+
+---
+
 ## What hasn't worked yet
 
 Two things are still unresolved and worth documenting honestly.
@@ -68,7 +80,7 @@ Running Docker properly in Linux is meaningfully different from using it through
 
 The VPN routing setup gave me a real understanding of Docker network isolation. The whole point of vpn_net is that containers on it can only reach the outside world through Gluetun. If that container goes down, the others on that network lose internet access entirely. Understanding why that works requires understanding how Docker handles routing between networks, which is directly applicable to the AWS networking concepts I'm covering in the SAA course.
 
-Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach where devices connect directly to each other rather than through a central server. Setting it up took about ten minutes and it just works.
+Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach where devices connect directly to each other rather than through a central server. Setting it up took about ten minutes and it just works. Magic DNS builds on top of that to make day to day use much more practical.
 
 ---
 
