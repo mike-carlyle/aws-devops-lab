@@ -19,7 +19,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 | qBittorrent | Download client | 8080 |
 | Gluetun | WireGuard VPN tunnel (Mullvad) | - |
 | Jellyfin | Media server | 8096 |
-| Pi-hole | Network DNS | 8091 / 53 |
+| AdGuard Home | Network-wide DNS ad blocking | 3000 / 53 |
 | Tailscale | Remote access | - |
 | Netdata | System monitoring | 19999 |
 | Portainer | Container management UI | 9000 |
@@ -35,7 +35,7 @@ The download client runs inside a dedicated Docker network called vpn_net, along
 
 Jellyfin runs on the standard bridge network and reads media from a shared volume at /movies, which the download client writes to at /downloads. The two containers never talk directly to each other but share the filesystem, which keeps things clean.
 
-Pi-hole sits in its own network stack handling DNS for the local network, blocking ads at the DNS level before they reach any device on the network.
+AdGuard Home handles DNS for the entire network, blocking ads and trackers at the DNS level before they reach any device. The Tenda MX12 router is pointed at 192.168.1.10 as primary DNS with 1.1.1.1 as a fallback in case the server is offline.
 
 Tailscale provides remote access, allowing me to connect back into the home network securely when away. In practice I use this to run updates and manage containers remotely, and to access Jellyfin when I'm not at home.
 
@@ -85,15 +85,25 @@ Like unattended-upgrades, Watchtower sends an email notification via msmtp and G
 
 The combination of unattended-upgrades and Watchtower means both the underlying OS and the container stack stay current automatically. The email notifications provide visibility without requiring manual checks.
 
+### Replacing Pi-hole with AdGuard Home
+
+Pi-hole was the original choice for network-wide DNS ad blocking due to popularity. The web UI was accessible and the container ran without issues, but two problems prevented it from working properly. The password configuration was not saving correctly, and pointing the Tenda MX12 mesh router to use it as the primary DNS server consistently failed. Research suggested AdGuard Home tends to work more reliably with this router, so the decision was made to switch rather than continue troubleshooting.
+
+The AdGuard Home container was up and running in under ten minutes. Initial testing was done by manually changing the DNS settings on an iPhone rather than at the router level, which allowed testing without affecting the rest of the network.
+
+During testing an issue came up where ads were only being blocked when not connected to Tailscale VPN. Disabling the VPN and testing confirmed the blocking worked correctly without it, which pinpointed Tailscale as the cause rather than AdGuard itself. The fix was to add the server IP to the DNS namespace in the Tailscale settings, which meant AdGuard was used as the DNS server regardless of whether Tailscale was active or not. AI helped confirm the fix once the cause had been identified through testing.
+
+With that resolved, the Tenda MX12 router was pointed to 192.168.1.10 as the primary DNS server. This required accessing the router settings through the iPhone app rather than the browser-based interface, which didn't expose the relevant setting. With the router change in place, all devices on the network now route DNS queries through AdGuard Home automatically.
+
+The impact was visible immediately. Visiting ad-heavy sites like speedtest.net showed noticeably fewer adverts, and the AdGuard dashboard confirmed DNS queries coming through from devices across the network.
+
+![AdGuard Home dashboard showing DNS queries and blocked requests](screenshots/adguard-dashboard.png)
+
 ---
 
 ## What hasn't worked yet
 
-Two things are still unresolved and worth documenting honestly.
-
-Pi-hole is set up and the web UI is accessible, but pointing my router to use it as the primary DNS server hasn't worked yet. The container is running fine, it's a router configuration problem I haven't solved. This is next on the list.
-
-Duplicati was the first attempt at setting up automated backups to OneDrive. It failed at the initial login step as I couldn't get past the password setup for the web UI. I haven't gone back to fix this yet. Backup to OneDrive is still a planned piece of work.
+Automated backups to OneDrive remain unresolved. Duplicati was the first attempt but failed at the initial login step as the password setup for the web UI couldn't be completed. Finding a working alternative is still on the list.
 
 ---
 
@@ -103,7 +113,7 @@ Running Docker properly in Linux is meaningfully different from using it through
 
 The VPN routing setup gave me a real understanding of Docker network isolation. The whole point of vpn_net is that containers on it can only reach the outside world through Gluetun. If that container goes down, the others on that network lose internet access entirely. Understanding why that works requires understanding how Docker handles routing between networks, which is directly applicable to the AWS networking concepts I'm covering in the SAA course.
 
-The Magic DNS issue was a good reminder that changes in one part of a system can have unexpected effects elsewhere. Enabling a feature that looked self-contained ended up breaking DNS resolution across the whole server. Diagnosing it by testing IP connectivity separately from hostname resolution is a straightforward but useful debugging approach.
+The Magic DNS issue and the AdGuard/Tailscale conflict were both good examples of how changes in one part of a system can have unexpected effects elsewhere. In both cases the diagnostic approach was the same: isolate the variable, test with it removed, and confirm the theory before applying a fix. That approach works whether you're troubleshooting a home server or a production environment.
 
 Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach where devices connect directly to each other rather than through a central server. Setting it up took about ten minutes and it just works. Magic DNS builds on top of that to make day to day use much more practical.
 
@@ -111,13 +121,12 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 
 ## What's next
 
-- Fix the Pi-hole DNS configuration at the router level
-- Find a working backup solution for OneDrive (Duplicati replacement or fix)
-- Update the architecture diagram to include Netdata, Portainer and Watchtower
+- Find a working backup solution to OneDrive
+- Update the architecture diagram to reflect AdGuard replacing Pi-hole.
 - Document the docker-compose files for each stack
 
 ---
 
 ## Skills this covers
 
-Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, and infrastructure observability. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
+Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, infrastructure observability, and systematic fault isolation. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
