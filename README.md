@@ -54,8 +54,12 @@ aws-devops-lab/
 **Homelab and Linux**
 - Ubuntu Server administration on self-built hardware
 - Docker and container networking including network isolation patterns
-- Running and managing services including Jellyfin, Pi-hole, Tailscale, Netdata and Portainer
-- Remote access via Tailscale mesh VPN
+- Running and managing services including Jellyfin, Pi-hole, Tailscale, Netdata, Portainer and Watchtower
+- Remote access via Tailscale mesh VPN and Magic DNS
+- Automated OS patching with unattended-upgrades
+- Automated container updates with Watchtower
+- Email notifications via msmtp and Gmail for automated events
+- DNS troubleshooting and resolving real infrastructure problems
 - Troubleshooting real infrastructure problems without a safety net
 
 **AWS**
@@ -65,6 +69,7 @@ aws-devops-lab/
 - AWS networking including VPCs, security groups, ENIs, and the differences between IP types
 - Storage with EBS, EFS, and AMIs and when to use each
 - High availability patterns using Elastic Load Balancers and Auto Scaling Groups
+- Managed databases with RDS including read replicas, Multi-AZ and storage auto scaling
 
 ---
 
