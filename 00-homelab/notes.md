@@ -23,6 +23,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 | Tailscale | Remote access | - |
 | Netdata | System monitoring | 19999 |
 | Portainer | Container management UI | 9000 |
+| Watchtower | Automated container updates | - |
 
 ---
 
@@ -40,6 +41,8 @@ Tailscale provides remote access, allowing me to connect back into the home netw
 
 Netdata and Portainer sit on top of everything as management tools. Netdata gives real-time visibility into system health and resource usage. Portainer provides a web UI for managing all the containers without needing to SSH in every time.
 
+Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
+
 ![Homelab Architecture](homelab-architecture.png)
 
 ---
@@ -52,7 +55,7 @@ I came into this having only used Docker through a GUI previously. Doing everyth
 
 ---
 
-## Improvements
+## Improvements and updates
 
 ### Tailscale Magic DNS
 
@@ -60,7 +63,27 @@ After getting Tailscale working for remote access I looked into making it easier
 
 Enabling Magic DNS in the Tailscale settings automatically assigns a DNS name to each device on the Tailscale network based on the device name. So instead of connecting to 192.168.1.10:8096 for Jellyfin, I can now use mchomeserver:8096 which is much more practical, especially when accessing multiple services remotely.
 
-It took a few minutes to set up and required no additional configuration on the server itself.
+### DNS resolution issue after enabling Magic DNS
+
+After enabling Magic DNS, running sudo apt update on the server produced a series of warnings and package updates failed. Pinging 8.8.8.8 by IP worked fine, but pinging google.com by hostname failed. This pointed to a DNS resolution problem rather than a network connectivity issue.
+
+The cause was that Magic DNS had taken over all DNS queries on the server and was routing them through Tailscale's resolver at 100.100.100.100. When Tailscale couldn't resolve an external hostname it had no fallback to reach public DNS servers.
+
+The fix was to add global nameservers in the Tailscale DNS settings alongside Magic DNS. DNS queries now go to Tailscale's 100.100.100.100 first, with Google (8.8.8.8) and Cloudflare (1.1.1.1) as fallbacks. Package updates and general internet connectivity from the server have worked correctly since.
+
+### Automated OS updates with unattended-upgrades
+
+Configured unattended-upgrades on Ubuntu to automatically apply security and package updates daily. Manual reboots are handled separately and done periodically when convenient rather than automatically, to avoid unexpected downtime.
+
+When updates are applied an email notification is sent via msmtp using a Gmail account. This means I get confirmation of what was updated without having to log in and check manually.
+
+### Automated container updates with Watchtower
+
+Watchtower is a container that monitors all other running containers and automatically pulls and applies updated images when they become available. It runs on a one hour scan cycle.
+
+Like unattended-upgrades, Watchtower sends an email notification via msmtp and Gmail whenever a container image is updated. Both notification systems were tested and confirmed working before being left to run.
+
+The combination of unattended-upgrades and Watchtower means both the underlying OS and the container stack stay current automatically. The email notifications provide visibility without requiring manual checks.
 
 ---
 
@@ -80,6 +103,8 @@ Running Docker properly in Linux is meaningfully different from using it through
 
 The VPN routing setup gave me a real understanding of Docker network isolation. The whole point of vpn_net is that containers on it can only reach the outside world through Gluetun. If that container goes down, the others on that network lose internet access entirely. Understanding why that works requires understanding how Docker handles routing between networks, which is directly applicable to the AWS networking concepts I'm covering in the SAA course.
 
+The Magic DNS issue was a good reminder that changes in one part of a system can have unexpected effects elsewhere. Enabling a feature that looked self-contained ended up breaking DNS resolution across the whole server. Diagnosing it by testing IP connectivity separately from hostname resolution is a straightforward but useful debugging approach.
+
 Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach where devices connect directly to each other rather than through a central server. Setting it up took about ten minutes and it just works. Magic DNS builds on top of that to make day to day use much more practical.
 
 ---
@@ -88,11 +113,11 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 
 - Fix the Pi-hole DNS configuration at the router level
 - Find a working backup solution for OneDrive (Duplicati replacement or fix)
-- Update the architecture diagram to include Netdata and Portainer
+- Update the architecture diagram to include Netdata, Portainer and Watchtower
 - Document the docker-compose files for each stack
 
 ---
 
 ## Skills this covers
 
-Linux server administration, Docker, container networking, VPN configuration, DNS, remote access, system monitoring, and infrastructure troubleshooting. Most of these map directly onto the containerisation and networking topics coming up in the AWS portion of my learning.
+Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, and infrastructure observability. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
