@@ -43,7 +43,7 @@ Netdata and Portainer sit on top of everything as management tools. Netdata give
 
 Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
 
-![Homelab Architecture](homelab-architecture.png)
+![Homelab Architecture](screenshots/homelab-architecture.png)
 
 ---
 
