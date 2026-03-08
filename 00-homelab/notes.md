@@ -43,7 +43,7 @@ Netdata and Portainer sit on top of everything as management tools. Netdata give
 
 Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
 
-![Homelab Architecture](screenshots/homelab-architecture.png)
+![Homelab Architecture](homelab-architecture.png)
 
 ---
 
@@ -87,7 +87,7 @@ The combination of unattended-upgrades and Watchtower means both the underlying 
 
 ### Replacing Pi-hole with AdGuard Home
 
-Pi-hole was the original choice for network-wide DNS ad blocking due to popularity. The web UI was accessible and the container ran without issues, but two problems prevented it from working properly. The password configuration was not saving correctly, and pointing the Tenda MX12 mesh router to use it as the primary DNS server consistently failed. Research suggested AdGuard Home tends to work more reliably with this router, so the decision was made to switch rather than continue troubleshooting.
+Pi-hole was the original choice for network-wide DNS ad blocking. The web UI was accessible and the container ran without issues, but two problems prevented it from working properly. The password configuration was not saving correctly, and pointing the Tenda MX12 mesh router to use it as the primary DNS server consistently failed. Research suggested AdGuard Home tends to work more reliably with this router, so the decision was made to switch rather than continue troubleshooting.
 
 The AdGuard Home container was up and running in under ten minutes. Initial testing was done by manually changing the DNS settings on an iPhone rather than at the router level, which allowed testing without affecting the rest of the network.
 
@@ -103,7 +103,15 @@ The impact was visible immediately. Visiting ad-heavy sites like speedtest.net s
 
 ## What hasn't worked yet
 
-Automated backups to OneDrive remain unresolved. Duplicati was the first attempt but failed at the initial login step as the password setup for the web UI couldn't be completed. Finding a working alternative is still on the list.
+### Backups to OneDrive
+
+Getting automated backups to OneDrive has been the most stubborn problem so far and two attempts have failed.
+
+The first attempt used Duplicati but failed at the initial login step as the password setup for the web UI couldn't be completed.
+
+The second attempt was more ambitious. A fully containerised backup solution using restic with rclone to back up docker-compose files and other key server configs to OneDrive on a nightly schedule with 14-day retention. In practice several things blocked a reliable setup. Mounting the rclone configuration into the container failed due to relative paths and permissions issues. Installing rclone at runtime inside the Alpine-based restic container proved unreliable and produced repeated executable not found errors. Headless OneDrive authentication also required an external device which added friction, and mounting host binaries into the container created further complexity. After repeated troubleshooting the setup was reverted to its original state.
+
+The exercise was useful despite failing. It highlighted specific pitfalls around containerised backups to cloud providers: headless OAuth authentication is genuinely awkward, Alpine-based containers need careful handling for runtime installs, and file system permissions between host and container need explicit attention. A working solution is still the goal and the next attempt will be informed by what went wrong here.
 
 ---
 
@@ -122,7 +130,6 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 ## What's next
 
 - Find a working backup solution to OneDrive
-- Update the architecture diagram to reflect AdGuard replacing Pi-hole.
 - Document the docker-compose files for each stack
 
 ---
