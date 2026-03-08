@@ -87,3 +87,99 @@ The distinction between read replicas and Multi-AZ is one of the most commonly t
 The async vs sync replication difference matters in practice. Async means replicas might lag behind. Sync means the standby is always current but introduces a small write latency because AWS has to confirm both copies are written before acknowledging success.
 
 The fact that you can't SSH into RDS is a reminder that managed services involve giving up some control in exchange for operational simplicity. For most use cases that's a good trade.
+
+---
+
+## Aurora
+
+Aurora is AWS's own cloud-native relational database engine, compatible with both PostgreSQL and MySQL drivers. Because it was built specifically for the cloud rather than adapted from an existing engine, it hits 3-5x the performance of standard MySQL or PostgreSQL on RDS. That performance comes at a cost though — Aurora runs around 20% more expensive than standard RDS.
+
+### Storage
+
+Storage starts at 10GB and scales automatically up to 128TB with no manual intervention needed. Data is stored as 6 copies spread across 3 AZs, which gives it strong resilience by default. The storage layer is also self-healing, meaning it automatically detects and repairs any corrupted data blocks in the background.
+
+### Read Replicas and Endpoints
+
+Aurora supports up to 15 read replicas with replication lag under 10ms, which is significantly better than standard RDS. Failover is fast too, completing in under 30 seconds.
+
+Rather than connecting directly to instances, Aurora provides two managed endpoints:
+
+- **Writer endpoint** — a DNS name that always points to the current master. If a failover happens, the DNS updates automatically so applications don't need reconfiguring.
+- **Reader endpoint** — handles connection load balancing across all read replicas automatically.
+
+### Key features
+
+Aurora includes automatic failover, backup and recovery, isolation and security, industry compliance, push-button scaling, automated patching with zero downtime, advanced monitoring, and routine maintenance. One standout feature is backtrack, which allows you to rewind the database to any point in time without needing to restore from a backup snapshot.
+
+### Hands-on
+
+The course hands-on showed setting up an Aurora MySQL database with a regional cluster containing both reader and writer instances, and configuring a read replica auto scaling policy triggered when CPU hits 60% with a configurable maximum number of instances. This section couldn't be followed hands-on as Aurora is not available on the AWS free tier.
+
+---
+
+## RDS and Aurora Backups
+
+### RDS Backups
+
+Automatic backups run daily during a configured window. Transaction logs are backed up every 5 minutes, which means point-in-time recovery is possible down to a 5 minute window. Retention can be set between 1 and 35 days and can be disabled if needed.
+
+Manual snapshots can be triggered at any time and kept for as long as needed.
+
+One useful tip from the course: when an RDS instance is stopped you still pay for the storage. If you plan on leaving it stopped for a while it's more cost effective to snapshot it, delete the instance, and restore from the snapshot when you need it again.
+
+### Aurora Backups
+
+Automated backups have a 1 to 35 day retention period and cannot be disabled. Point-in-time recovery is available for the full retention window.
+
+Manual snapshots work the same as RDS.
+
+### Restore Options
+
+Both RDS and Aurora backups restore into a new database instance rather than overwriting the existing one.
+
+For migrating an on-premise MySQL database into RDS: back up on-premise, store the backup in S3, then restore onto a new RDS MySQL instance.
+
+For Aurora specifically, on-premise backups need to be created using Percona XtraBackup before storing in S3 and restoring onto a new Aurora cluster.
+
+### Aurora Database Cloning
+
+Aurora can clone a production database into a separate environment, for example a staging or UAT environment, without impacting production performance. It uses a copy-on-write protocol which makes it significantly faster and cheaper than doing a full snapshot and restore. Changes to the clone don't affect production and vice versa.
+
+---
+
+## RDS and Aurora Security
+
+**Encryption at rest** uses AWS KMS and must be configured at launch time. If you need to encrypt an existing unencrypted database, the process is to take a snapshot, encrypt the snapshot, and restore from it into a new encrypted instance.
+
+**Encryption in flight** is supported via TLS by default. The AWS TLS root certificate is used on the client side.
+
+**Network access** is controlled through security groups, the same as EC2.
+
+**SSH access** is not available on standard RDS or Aurora, only on RDS Custom.
+
+**Audit logs** can be enabled and sent to CloudWatch for monitoring and compliance purposes.
+
+---
+
+## RDS Proxy
+
+RDS Proxy sits between your application and the database, pooling and sharing database connections rather than each application instance opening its own connection directly. This reduces the load on database resources (CPU and RAM) from connection management overhead.
+
+Key benefits:
+
+- Failover time reduced by up to 66% because the proxy handles the failover rather than the application having to reconnect
+- No code changes required for most applications
+- Enforces IAM authentication for database access, with credentials stored in AWS Secrets Manager
+- Never publicly accessible, only reachable from within the VPC
+
+A specific use case mentioned was Lambda functions, which can appear and disappear rapidly and would otherwise open and close large numbers of database connections in a short time. RDS Proxy handles this cleanly by maintaining a stable connection pool regardless of how many Lambda invocations are happening.
+
+---
+
+## What I took from this section
+
+Aurora is essentially a premium version of RDS for workloads that need higher performance or stronger resilience. The 6-copy across 3-AZ storage model and the sub-10ms replica lag are the headline differentiators. For most standard workloads standard RDS is fine, but for anything where availability and performance are critical Aurora makes a strong case despite the extra cost.
+
+The backtrack feature is genuinely interesting. Being able to rewind a database without a restore is much faster than the traditional snapshot approach and removes a lot of the risk around accidental data changes.
+
+RDS Proxy is one of those features that seems like a detail but matters a lot in practice. Connection management becomes a real problem at scale and at high Lambda invocation rates. Having a managed proxy handle it cleanly without application changes is a significant operational win.
