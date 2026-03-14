@@ -43,7 +43,7 @@ Netdata and Portainer sit on top of everything as management tools. Netdata give
 
 Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
 
-![Homelab Architecture](screenshots/homelab-architecture.png)
+![Homelab Architecture](homelab-architecture.png)
 
 ---
 
@@ -84,6 +84,36 @@ Watchtower is a container that monitors all other running containers and automat
 Like unattended-upgrades, Watchtower sends an email notification via msmtp and Gmail whenever a container image is updated. Both notification systems were tested and confirmed working before being left to run.
 
 The combination of unattended-upgrades and Watchtower means both the underlying OS and the container stack stay current automatically. The email notifications provide visibility without requiring manual checks.
+
+### Watchtower scanning fix
+
+About a week after setting up Watchtower, checking the logs revealed it was running scans every hour as expected but reporting `Scanned=0` each time. The logs showed it was running with both label filtering and a scope restriction:
+
+```
+Only checking containers using enable label, in scope "mike"
+```
+
+The containers had the enable label set correctly:
+
+```
+com.centurylinklabs.watchtower.enable=true
+```
+
+But they were missing the required scope label:
+
+```
+com.centurylinklabs.watchtower.scope=mike
+```
+
+Because the scope label was absent, Watchtower ignored all containers entirely despite the enable label being present.
+
+The fix was to remove the scope restriction (`--scope mike`) from the Watchtower configuration so it filters by the enable label only. A manual scan was then triggered to verify:
+
+```bash
+docker exec watchtower /watchtower --run-once
+```
+
+After the change Watchtower successfully scanned all running containers and sent notification emails reporting available updates for Portainer and AdGuard Home, confirming that both container discovery and notifications are working correctly.
 
 ### Replacing Pi-hole with AdGuard Home
 
