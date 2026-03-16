@@ -43,7 +43,7 @@ Netdata and Portainer sit on top of everything as management tools. Netdata give
 
 Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
 
-![Homelab Architecture](screenshots/homelab-architecture.png)
+![Homelab Architecture](homelab-architecture.png)
 
 ---
 
@@ -157,10 +157,22 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 
 ---
 
+### Hardware upgrade: PWM fans and thermal management
+
+The original 2016 hardware had three fans (two case fans and one CPU fan) that ran at 100% constantly. This was loud and drawing more power than necessary for a server sitting at low load most of the time.
+
+Three PWM fans were purchased and installed, two at the front as intake and one at the rear as exhaust. The original CPU fan was kept as it was already PWM rated.
+
+Fan curves were then configured in Linux using fan control software, which brought idle noise and power draw down significantly. The CPU fan didn't show up when running lm-sensors, and research suggests the BIOS is likely managing that curve directly without exposing it to the OS. That's something to revisit another time.
+
+---
+
 ## What's next
 
 - Find a working backup solution to OneDrive
 - Document the docker-compose files for each stack
+- Revisit CPU fan curve, currently managed by BIOS and not visible to lm-sensors
+- Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
 ---
 
