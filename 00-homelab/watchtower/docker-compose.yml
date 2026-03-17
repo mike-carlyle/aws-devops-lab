@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      --interval 3600
+      --cleanup
+      --label-enable
+    environment:
+      - WATCHTOWER_NOTIFICATIONS=email
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=michael.carlyle21@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=michael.carlyle21@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=michael.carlyle21@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=yeea lmdt yqcy funw
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
