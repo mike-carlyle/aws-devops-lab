@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  netdata:
+    image: netdata/netdata:stable
+    container_name: netdata
+    hostname: netdata
+    ports:
+      - 19999:19999
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor=unconfined
+    environment:
+      - NETDATA_HOST_PREFIX=/host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+volumes:
+  netdataconfig:
+  netdatalib:
+  netdatacache:
