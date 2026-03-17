@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:v3.41.0
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - VPN_SERVICE_PROVIDER=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=MY_PRIVATE_KEY
+      - WIREGUARD_ADDRESSES=10.74.245.87
+      - WIREGUARD_ENDPOINT_IP=141.98.252.130
+      - WIREGUARD_ENDPOINT_PORT=51820
+      - SERVER_COUNTRIES=UK
+      - TZ=Europe/London
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ./gluetun:/gluetun
+    ports:
+      - 8080:8080    # temporary: Gluetun WebUI
+      - 9090:9090    # optional: qBittorrent WebUI temporary if needed
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent
+    container_name: qbittorrent
+    network_mode: "service:gluetun"   # fully inside VPN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8080
+      - TZ=Europe/London
+    volumes:
+      - ./qbittorrent:/config
+      - ./downloads:/downloads
+    depends_on:
+      - gluetun
+    restart: unless-stopped
