@@ -53,7 +53,7 @@ aws-devops-lab/
 
 **Homelab and Linux**
 - Ubuntu Server administration on self-built hardware
-- Docker and container networking including network isolation patterns
+- Docker and container networking including network isolation patterns, with compose files documented for each service
 - Running and managing services including Jellyfin, AdGuard Home, Tailscale, Netdata, Portainer and Watchtower
 - Remote access via Tailscale mesh VPN and Magic DNS
 - Automated OS patching with unattended-upgrades
