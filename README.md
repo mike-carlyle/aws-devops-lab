@@ -31,6 +31,7 @@ aws-devops-lab/
 ├── 02-iam/
 ├── 03-ec2/
 ├── 04-databases/
+├── 05-route53/
 └── certifications/
     └── saa-prep/
 ```
@@ -46,7 +47,7 @@ aws-devops-lab/
 | 02 | IAM | Complete |
 | 03 | EC2 | Complete |
 | 04 | Databases (RDS, Aurora, ElastiCache) | Complete |
-| 05 | Route53 | Not Started |
+| 05 | Route 53 | Not Started |
 
 ---
 
