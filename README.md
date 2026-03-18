@@ -45,7 +45,8 @@ aws-devops-lab/
 | 01 | AWS Fundamentals | Complete |
 | 02 | IAM | Complete |
 | 03 | EC2 | Complete |
-| 04 | Databases (RDS, Aurora, ElastiCache) | In Progress |
+| 04 | Databases (RDS, Aurora, ElastiCache) | Complete |
+| 05 | Route53 | Not Started |
 
 ---
 
@@ -69,7 +70,7 @@ aws-devops-lab/
 - AWS networking including VPCs, security groups, ENIs, and the differences between IP types
 - Storage with EBS, EFS, and AMIs and when to use each
 - High availability patterns using Elastic Load Balancers and Auto Scaling Groups
-- Managed databases with RDS and Aurora including read replicas, Multi-AZ, backups, security and RDS Proxy
+- Managed databases with RDS, Aurora and ElastiCache including read replicas, Multi-AZ, caching strategies and RDS Proxy
 
 ---
 
