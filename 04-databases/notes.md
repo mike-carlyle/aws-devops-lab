@@ -229,3 +229,5 @@ ElastiCache is one of those services that's simple to understand conceptually bu
 The Redis vs Memcached decision comes up in the SAA exam regularly. The short version is: if you need persistence, replication, or complex data structures, use Redis. If you just need a fast, simple, multi-threaded cache, Memcached is sufficient.
 
 The pattern of putting a cache in front of a database to reduce load is directly applicable to how real production systems are architected. Understanding where ElastiCache sits in that picture and why you'd reach for it is more useful than knowing the specific configuration options.
+
+Completed the section 9 (databases) quiz on the first attempt and scored 20 out of 25.
