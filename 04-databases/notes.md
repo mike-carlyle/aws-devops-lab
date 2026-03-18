@@ -92,7 +92,7 @@ The fact that you can't SSH into RDS is a reminder that managed services involve
 
 ## Aurora
 
-Aurora is AWS's own cloud-native relational database engine, compatible with both PostgreSQL and MySQL drivers. Because it was built specifically for the cloud rather than adapted from an existing engine, it hits 3-5x the performance of standard MySQL or PostgreSQL on RDS. That performance comes at a cost though — Aurora runs around 20% more expensive than standard RDS.
+Aurora is AWS's own cloud-native relational database engine, compatible with both PostgreSQL and MySQL drivers. Because it was built specifically for the cloud rather than adapted from an existing engine, it hits 3-5x the performance of standard MySQL or PostgreSQL on RDS. That performance comes at a cost though, as Aurora runs around 20% more expensive than standard RDS.
 
 ### Storage
 
@@ -104,8 +104,8 @@ Aurora supports up to 15 read replicas with replication lag under 10ms, which is
 
 Rather than connecting directly to instances, Aurora provides two managed endpoints:
 
-- **Writer endpoint** — a DNS name that always points to the current master. If a failover happens, the DNS updates automatically so applications don't need reconfiguring.
-- **Reader endpoint** — handles connection load balancing across all read replicas automatically.
+- **Writer endpoint:** a DNS name that always points to the current master. If a failover happens, the DNS updates automatically so applications don't need reconfiguring.
+- **Reader endpoint:** handles connection load balancing across all read replicas automatically.
 
 ### Key features
 
@@ -183,3 +183,49 @@ Aurora is essentially a premium version of RDS for workloads that need higher pe
 The backtrack feature is genuinely interesting. Being able to rewind a database without a restore is much faster than the traditional snapshot approach and removes a lot of the risk around accidental data changes.
 
 RDS Proxy is one of those features that seems like a detail but matters a lot in practice. Connection management becomes a real problem at scale and at high Lambda invocation rates. Having a managed proxy handle it cleanly without application changes is a significant operational win.
+
+---
+
+## ElastiCache
+
+ElastiCache is AWS's managed in-memory database service, providing high performance and low latency data retrieval. Like RDS, AWS handles the underlying OS maintenance, patching, optimisation, backups and monitoring. ElastiCache supports two engines: Redis and Memcached.
+
+The main purpose is to reduce load on the primary database by caching frequently accessed data in memory. Retrieving data from memory is significantly faster than querying a database, so ElastiCache sits in front of RDS to absorb repeated reads. One important consideration is that implementing ElastiCache requires significant application code changes, as the application needs to know to check the cache before hitting the database.
+
+### How it works in practice
+
+**DB caching:** The application queries ElastiCache first. If the data is there (a cache hit) it returns immediately without touching the database. If not (a cache miss) the application queries RDS, returns the result, and also writes it into ElastiCache for subsequent requests. This requires an invalidation strategy to ensure stale data doesn't sit in the cache indefinitely.
+
+**User session store:** A user logs into the application and the session data is written to ElastiCache. If the user then hits a different instance of the application, that instance retrieves the session from ElastiCache and the user remains logged in without needing to re-authenticate. This is a common pattern for horizontally scaled applications.
+
+### Redis vs Memcached
+
+| Feature | Redis | Memcached |
+|---------|-------|-----------|
+| Multi-AZ | Yes, with auto-failover | No |
+| Read replicas | Yes | No |
+| Data persistence | Yes, using AOF | No |
+| Backup and restore | Yes | Serverless only |
+| Data structures | Sets, sorted sets and more | Key-value only |
+| Multi-threaded | No | Yes |
+| Partitioning | No | Yes, multi-node |
+
+Redis is the right choice when you need high availability, persistence, and more complex data structures. Memcached suits simpler use cases where raw throughput and multi-threaded performance matter more than resilience.
+
+### Hands-on
+
+Created a demo ElastiCache cluster using the AWS console with Redis 7.1.0 on a cache.t3.micro node. The cluster was created with cluster mode disabled and a single node for the purposes of the demo.
+
+Connecting ElastiCache to a real application was not completed as it would require significant code changes and there is no demo application available at this stage. The hands-on focused on understanding the configuration options and how a cluster is provisioned.
+
+![ElastiCache demo cluster in AWS console showing Redis 7.1.0 on cache.t3.micro](screenshots/elasticache-cluster.png)
+
+---
+
+## What I took from this section
+
+ElastiCache is one of those services that's simple to understand conceptually but requires real application work to implement properly. The cache invalidation problem is the hard part. Knowing when to expire or update cached data is an application design challenge, not just an infrastructure one.
+
+The Redis vs Memcached decision comes up in the SAA exam regularly. The short version is: if you need persistence, replication, or complex data structures, use Redis. If you just need a fast, simple, multi-threaded cache, Memcached is sufficient.
+
+The pattern of putting a cache in front of a database to reduce load is directly applicable to how real production systems are architected. Understanding where ElastiCache sits in that picture and why you'd reach for it is more useful than knowing the specific configuration options.
