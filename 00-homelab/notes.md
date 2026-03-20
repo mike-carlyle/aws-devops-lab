@@ -137,7 +137,9 @@ The original 2016 hardware had three fans (two case fans and one CPU fan) that r
 
 Three PWM fans were purchased and installed, two at the front as intake and one at the rear as exhaust. The original CPU fan was kept as it was already PWM rated.
 
-Fan curves were then configured in Linux using fan control software, which brought idle noise and power draw down significantly. The CPU fan didn't show up when running lm-sensors, and research suggests the BIOS is likely managing that curve directly without exposing it to the OS. That's something to revisit another time.
+Fan curves were then configured in Linux using fan control software for the case fans, which brought noise and power draw down significantly. The CPU fan didn't show up when running lm-sensors initially, as the BIOS was managing it directly without exposing it to the OS.
+
+Going into the BIOS directly resolved this. The CPU fan had been set to full speed mode, which was changed to Level 2 out of 9 after testing multiple levels and monitoring CPU temperature under load. The server now sits at 30 degrees or below at idle. Both the case fans and CPU fan are configured to ramp up as CPU temperature increases, so there is still thermal protection under heavy load.
 
 ---
 
@@ -170,7 +172,6 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 ## What's next
 
 - Find a working backup solution to OneDrive
-- Revisit CPU fan curve, currently managed by BIOS and not visible to lm-sensors
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
 ---
