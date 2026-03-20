@@ -2,30 +2,31 @@
 
 ## The idea
 
-I had an old PC I built back in 2016 sitting unused. Rather than let it gather dust I decided to repurpose it as a home server. The goal was practical: learn Linux properly, get hands-on with Docker outside of a GUI, and run some useful services at home. It turned out to be one of the most useful things I've done for my technical development.
+I had an old PC I built back in 2016 sitting unused. Rather than let it gather dust I decided to repurpose it as a home server. The goal was practical: learn Linux properly, get hands-on with Docker outside of a GUI, and run some useful services at home. It turned out to be one of the most useful things I’ve done for my technical development.
 
----
+-----
 
 ## Hardware
 
-A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 on the home network at 192.168.1.10.
+A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 on the home network at 192.168.1.10. Three PWM case fans (two intake, one exhaust) and a PWM CPU fan are configured via BIOS to ramp up with CPU temperature. At idle the CPU sits at 30 degrees or below.
 
----
+-----
 
-## What's running
+## What’s running
 
-| Container | Purpose | Port |
-|-----------|---------|------|
-| qBittorrent | Download client | 8080 |
-| Gluetun | WireGuard VPN tunnel (Mullvad) | - |
-| Jellyfin | Media server | 8096 |
-| AdGuard Home | Network-wide DNS ad blocking | 3000 / 53 |
-| Tailscale | Remote access | - |
-| Netdata | System monitoring | 19999 |
-| Portainer | Container management UI | 9000 |
-| Watchtower | Automated container updates | - |
+|Container   |Purpose                       |Port     |
+|------------|------------------------------|---------|
+|qBittorrent |Download client               |8080     |
+|Gluetun     |WireGuard VPN tunnel (Mullvad)|-        |
+|Jellyfin    |Media server                  |8096     |
+|AdGuard Home|Network-wide DNS ad blocking  |3000 / 53|
+|Tailscale   |Remote access                 |-        |
+|Netdata     |System monitoring             |19999    |
+|Portainer   |Container management UI       |9000     |
+|Watchtower  |Automated container updates   |-        |
+|Duplicati   |Automated backups to OneDrive |8200     |
 
----
+-----
 
 ## Architecture
 
@@ -37,25 +38,27 @@ Jellyfin runs on the standard bridge network and reads media from a shared volum
 
 AdGuard Home handles DNS for the entire network, blocking ads and trackers at the DNS level before they reach any device. The Tenda MX12 router is pointed at 192.168.1.10 as primary DNS with 1.1.1.1 as a fallback in case the server is offline.
 
-Tailscale provides remote access, allowing me to connect back into the home network securely when away. In practice I use this to run updates and manage containers remotely, and to access Jellyfin when I'm not at home.
+Tailscale provides remote access, allowing me to connect back into the home network securely when away. In practice I use this to run updates and manage containers remotely, and to access Jellyfin when I’m not at home.
 
 Netdata and Portainer sit on top of everything as management tools. Netdata gives real-time visibility into system health and resource usage. Portainer provides a web UI for managing all the containers without needing to SSH in every time.
 
 Watchtower runs on a one hour scan cycle and automatically updates any containers where a newer image is available, keeping the stack current without manual intervention.
 
+Duplicati runs daily at 22:00 and backs up container config folders to personal OneDrive with a 14 day retention policy.
+
 Docker Compose files for each service are documented in their own subfolders within this section of the repository, with sensitive values replaced by placeholders.
 
 ![Homelab Architecture](screenshots/homelab-architecture.png)
 
----
+-----
 
 ## How it came together
 
 The initial server setup and core containers took around five and a half hours. Getting the VPN routing working came about a week later and took another two hours on top of that.
 
-I came into this having only used Docker through a GUI previously. Doing everything in Linux via the command line was a step up. The Gluetun container in particular took a lot of attempts to get right. Getting the networking configured so that the download client's traffic was actually routing through the VPN rather than around it wasn't obvious and required a fair bit of troubleshooting. AI helped me work through the configuration once I understood what I was actually trying to achieve.
+I came into this having only used Docker through a GUI previously. Doing everything in Linux via the command line was a step up. The Gluetun container in particular took a lot of attempts to get right. Getting the networking configured so that the download client’s traffic was actually routing through the VPN rather than around it wasn’t obvious and required a fair bit of troubleshooting. AI helped me work through the configuration once I understood what I was actually trying to achieve.
 
----
+-----
 
 ## Improvements and updates
 
@@ -69,9 +72,9 @@ Enabling Magic DNS in the Tailscale settings automatically assigns a DNS name to
 
 After enabling Magic DNS, running sudo apt update on the server produced a series of warnings and package updates failed. Pinging 8.8.8.8 by IP worked fine, but pinging google.com by hostname failed. This pointed to a DNS resolution problem rather than a network connectivity issue.
 
-The cause was that Magic DNS had taken over all DNS queries on the server and was routing them through Tailscale's resolver at 100.100.100.100. When Tailscale couldn't resolve an external hostname it had no fallback to reach public DNS servers.
+The cause was that Magic DNS had taken over all DNS queries on the server and was routing them through Tailscale’s resolver at 100.100.100.100. When Tailscale couldn’t resolve an external hostname it had no fallback to reach public DNS servers.
 
-The fix was to add global nameservers in the Tailscale DNS settings alongside Magic DNS. DNS queries now go to Tailscale's 100.100.100.100 first, with Google (8.8.8.8) and Cloudflare (1.1.1.1) as fallbacks. Package updates and general internet connectivity from the server have worked correctly since.
+The fix was to add global nameservers in the Tailscale DNS settings alongside Magic DNS. DNS queries now go to Tailscale’s 100.100.100.100 first, with Google (8.8.8.8) and Cloudflare (1.1.1.1) as fallbacks. Package updates and general internet connectivity from the server have worked correctly since.
 
 ### Automated OS updates with unattended-upgrades
 
@@ -125,7 +128,7 @@ The AdGuard Home container was up and running in under ten minutes. Initial test
 
 During testing an issue came up where ads were only being blocked when not connected to Tailscale VPN. Disabling the VPN and testing confirmed the blocking worked correctly without it, which pinpointed Tailscale as the cause rather than AdGuard itself. The fix was to add the server IP to the DNS namespace in the Tailscale settings, which meant AdGuard was used as the DNS server regardless of whether Tailscale was active or not. AI helped confirm the fix once the cause had been identified through testing.
 
-With that resolved, the Tenda MX12 router was pointed to 192.168.1.10 as the primary DNS server. This required accessing the router settings through the iPhone app rather than the browser-based interface, which didn't expose the relevant setting. With the router change in place, all devices on the network now route DNS queries through AdGuard Home automatically.
+With that resolved, the Tenda MX12 router was pointed to 192.168.1.10 as the primary DNS server. This required accessing the router settings through the iPhone app rather than the browser-based interface, which didn’t expose the relevant setting. With the router change in place, all devices on the network now route DNS queries through AdGuard Home automatically.
 
 The impact was visible immediately. Visiting ad-heavy sites like speedtest.net showed noticeably fewer adverts, and the AdGuard dashboard confirmed DNS queries coming through from devices across the network.
 
@@ -133,49 +136,46 @@ The impact was visible immediately. Visiting ad-heavy sites like speedtest.net s
 
 ### Hardware upgrade: PWM fans and thermal management
 
-The original 2016 hardware had three fans (two case fans and one CPU fan) that ran at 100% constantly. This was loud and drawing more power than necessary for a server sitting at low load most of the time.
+The original 2016 hardware had three fans that ran at 100% constantly. This was loud and drawing more power than necessary for a server sitting at low load most of the time.
 
 Three PWM fans were purchased and installed, two at the front as intake and one at the rear as exhaust. The original CPU fan was kept as it was already PWM rated.
 
-Fan curves were then configured in Linux using fan control software for the case fans, which brought noise and power draw down significantly. The CPU fan didn't show up when running lm-sensors initially, as the BIOS was managing it directly without exposing it to the OS.
+Fan curves were configured in Linux using fan control software for the case fans. The CPU fan did not show up when running lm-sensors as the BIOS was managing it directly. Going into the BIOS and changing it from full speed mode to Level 2 out of 9, after testing multiple levels and monitoring CPU temperature under load, resolved this. The server now sits at 30 degrees or below at idle with both fans configured to ramp up as temperature increases.
 
-Going into the BIOS directly resolved this. The CPU fan had been set to full speed mode, which was changed to Level 2 out of 9 after testing multiple levels and monitoring CPU temperature under load. The server now sits at 30 degrees or below at idle. Both the case fans and CPU fan are configured to ramp up as CPU temperature increases, so there is still thermal protection under heavy load.
+### Backups to OneDrive with Duplicati
 
----
+Getting automated backups to OneDrive working took three attempts.
 
-## What hasn't worked yet
+The first attempt used Duplicati but failed at the initial login step as the password setup for the web UI could not be completed.
 
-### Backups to OneDrive
+The second attempt used a containerised restic and rclone solution. This failed due to mounting issues with the rclone config, unreliable runtime installs inside an Alpine-based container, and headless OneDrive authentication requiring an external device. After repeated troubleshooting it was reverted.
 
-Getting automated backups to OneDrive has been the most stubborn problem so far and two attempts have failed.
+The third attempt returned to Duplicati with a better understanding of what had gone wrong the first time. Several specific issues had to be worked through. The latest stable image (2.1.x) dropped the consumer OneDrive backend so the development tag was used instead. Getting into the web UI required setting `DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES=*` to allow connections from the server IP. The container also required `SETTINGS_ENCRYPTION_KEY` to start. On first run with a fresh config volume there is no password, so the login workaround was using the literal string `no-password` and then setting a proper password in settings afterwards. A permissions issue on Portainer’s data directory required a chmod fix as it was root owned. Two AdGuard runtime database files throw locked file warnings during backup which are harmless and can be ignored.
 
-The first attempt used Duplicati but failed at the initial login step as the password setup for the web UI couldn't be completed.
+Backup runs daily at 22:00, targeting specific container config folders and excluding media files from the qBittorrent downloads folder. Backups go to `Documents/Personal/Backup/Homelab/` on personal OneDrive with a 14 day retention policy.
 
-The second attempt was more ambitious. A fully containerised backup solution using restic with rclone to back up docker-compose files and other key server configs to OneDrive on a nightly schedule with 14-day retention. In practice several things blocked a reliable setup. Mounting the rclone configuration into the container failed due to relative paths and permissions issues. Installing rclone at runtime inside the Alpine-based restic container proved unreliable and produced repeated executable not found errors. Headless OneDrive authentication also required an external device which added friction, and mounting host binaries into the container created further complexity. After repeated troubleshooting the setup was reverted to its original state.
-
-The exercise was useful despite failing. It highlighted specific pitfalls around containerised backups to cloud providers: headless OAuth authentication is genuinely awkward, Alpine-based containers need careful handling for runtime installs, and file system permissions between host and container need explicit attention. A working solution is still the goal and the next attempt will be informed by what went wrong here.
-
----
+-----
 
 ## What I learned
 
-Running Docker properly in Linux is meaningfully different from using it through a GUI. Writing and editing docker-compose files directly, understanding how container networking actually works, and debugging why a container won't start are all skills that don't translate from clicking around a UI.
+Running Docker properly in Linux is meaningfully different from using it through a GUI. Writing and editing docker-compose files directly, understanding how container networking actually works, and debugging why a container won’t start are all skills that don’t translate from clicking around a UI.
 
-The VPN routing setup gave me a real understanding of Docker network isolation. The whole point of vpn_net is that containers on it can only reach the outside world through Gluetun. If that container goes down, the others on that network lose internet access entirely. Understanding why that works requires understanding how Docker handles routing between networks, which is directly applicable to the AWS networking concepts I'm covering in the SAA course.
+The VPN routing setup gave me a real understanding of Docker network isolation. The whole point of vpn_net is that containers on it can only reach the outside world through Gluetun. If that container goes down, the others on that network lose internet access entirely. Understanding why that works requires understanding how Docker handles routing between networks, which is directly applicable to the AWS networking concepts I’m covering in the SAA course.
 
-The Magic DNS issue and the AdGuard/Tailscale conflict were both good examples of how changes in one part of a system can have unexpected effects elsewhere. In both cases the diagnostic approach was the same: isolate the variable, test with it removed, and confirm the theory before applying a fix. That approach works whether you're troubleshooting a home server or a production environment.
+The Magic DNS issue and the AdGuard/Tailscale conflict were both good examples of how changes in one part of a system can have unexpected effects elsewhere. In both cases the diagnostic approach was the same: isolate the variable, test with it removed, and confirm the theory before applying a fix. That approach works whether you’re troubleshooting a home server or a production environment.
 
 Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach where devices connect directly to each other rather than through a central server. Setting it up took about ten minutes and it just works. Magic DNS builds on top of that to make day to day use much more practical.
 
----
+-----
 
-## What's next
+## What’s next
 
-- Find a working backup solution to OneDrive
+- Update architecture diagram to include Duplicati backup solution
+- Add Duplicati docker-compose file to repo
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
----
+-----
 
 ## Skills this covers
 
-Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, infrastructure observability, and systematic fault isolation. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
+Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, cloud backups, infrastructure observability, and systematic fault isolation. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
