@@ -14,17 +14,18 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 
 ## What’s running
 
-|Container   |Purpose                       |Port     |
-|------------|------------------------------|---------|
-|qBittorrent |Download client               |8080     |
-|Gluetun     |WireGuard VPN tunnel (Mullvad)|-        |
-|Jellyfin    |Media server                  |8096     |
-|AdGuard Home|Network-wide DNS ad blocking  |3000 / 53|
-|Tailscale   |Remote access                 |-        |
-|Netdata     |System monitoring             |19999    |
-|Portainer   |Container management UI       |9000     |
-|Watchtower  |Automated container updates   |-        |
-|Duplicati   |Automated backups to OneDrive |8200     |
+|Container        |Purpose                       |Port     |
+|-----------------|------------------------------|---------|
+|qBittorrent      |Download client               |8080     |
+|Gluetun          |WireGuard VPN tunnel (Mullvad)|-        |
+|Jellyfin         |Media server                  |8096     |
+|AdGuard Home     |Network-wide DNS ad blocking  |3000 / 53|
+|Tailscale        |Remote access                 |-        |
+|Netdata          |System monitoring             |19999    |
+|Portainer        |Container management UI       |9000     |
+|Watchtower       |Automated container updates   |-        |
+|Duplicati        |Automated backups to OneDrive |8200     |
+|Minecraft Bedrock|Private game server           |19132 UDP|
 
 -----
 
@@ -168,14 +169,28 @@ Tailscale is genuinely impressive for remote access. It uses a mesh VPN approach
 
 -----
 
+### Minecraft Bedrock Server
+
+Set up a private Minecraft Bedrock server for a family member using the itzg/minecraft-bedrock-server Docker image. The server runs on UDP port 19132 and is not exposed to the public internet at all. Access is restricted entirely through Tailscale.
+
+The interesting part of this setup is the Tailscale ACL configuration. Rather than giving the external player full access to the Tailscale network, a specific ACL policy was created that restricts their account to only the Minecraft service. They cannot see or reach any other devices or services on the network. This is a practical example of least privilege applied to network access, the same principle that underpins IAM in AWS.
+
+UFW firewall rules were also added to ensure the Minecraft port is only reachable via the Tailscale subnet, adding a second layer of access control.
+
+The container is configured with automatic world backups on a daily schedule with a retention policy. Watchtower labels are included so container image updates are handled automatically. World backups to OneDrive via Duplicati are planned as a next step.
+
+-----
+
 ## What’s next
 
-- Update architecture diagram to include Duplicati backup solution
+- Update architecture diagram to include Duplicati and Minecraft
 - Add Duplicati docker-compose file to repo
+- Add Minecraft docker-compose file to repo
+- Add Minecraft world backups to Duplicati config
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
 -----
 
 ## Skills this covers
 
-Linux server administration, Docker, container networking, VPN configuration, DNS troubleshooting, remote access, system monitoring, automated patching, cloud backups, infrastructure observability, and systematic fault isolation. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
+Linux server administration, Docker, container networking, VPN configuration, network access control, DNS troubleshooting, remote access, system monitoring, automated patching, cloud backups, infrastructure observability, and systematic fault isolation. Most of these map directly onto the containerisation, networking, and operational topics coming up in the AWS portion of my learning.
