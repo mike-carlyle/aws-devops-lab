@@ -26,6 +26,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 |Watchtower       |Automated container updates   |-        |
 |Duplicati        |Automated backups to OneDrive |8200     |
 |Minecraft Bedrock|Private game server           |19132 UDP|
+|fail2ban         |SSH brute-force protection    |-        |
 
 -----
 
