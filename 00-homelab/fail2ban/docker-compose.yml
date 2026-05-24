@@ -1,0 +1,19 @@
+services:
+  fail2ban:
+    image: lscr.io/linuxserver/fail2ban:latest
+    container_name: fail2ban
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - VERBOSITY=-vv
+    volumes:
+      - ./config:/config
+      - /var/log:/var/log:ro
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

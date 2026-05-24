@@ -170,6 +170,18 @@ The third attempt returned to Duplicati with a better understanding of what had 
 
 Backup runs daily at 22:00, targeting specific container config folders and excluding media files from the qBittorrent downloads folder. Backups go to `Documents/Personal/Backup/Homelab/` on personal OneDrive with a 14 day retention policy.
 
+### Adding fail2ban for SSH brute-force protection
+
+The home network is trusted and the router does not forward port 22, but adding a second layer of brute-force protection at the host level is a sensible practice on any internet-connected machine and pairs naturally with the existing UFW configuration. fail2ban reads the auth log, counts failed attempts per source IP and inserts temporary iptables rules to reject further connections once a threshold is crossed.
+
+fail2ban was set up as a containerised service to match the rest of the stack, using `lscr.io/linuxserver/fail2ban`. The container needs `network_mode: host` and `NET_ADMIN`/`NET_RAW` capabilities so the rules it inserts land in the host's iptables and not just the container's own namespace. The host's `/var/log` directory is mounted read-only so the container can tail `auth.log` without being able to modify it.
+
+The only custom configuration is a single `jail.local` file that overrides the defaults: ban for one hour after five failures within ten minutes, and never ban anything in `127.0.0.1/8`, `::1`, `192.168.1.0/24` or `100.64.0.0/10`. The last range is Tailscale's CGNAT space, which keeps every Tailscale peer out of any possible ban list. Only the sshd jail is enabled. The image ships with templates for many other services but they all default to disabled.
+
+A test ban against `203.0.113.99` (a documentation-only IP from TEST-NET-3) confirmed that the `f2b-sshd` chain was created in the host's iptables and the jump from `INPUT` was inserted on TCP port 22. `fail2ban-regex` was then run against the live `auth.log` to confirm the filter parses the ISO-8601 timestamp format produced by rsyslog on Ubuntu 24.04. fail2ban coexists with UFW because each tool maintains its own chains and inserts its own jumps; they do not overlap or interfere.
+
+One quirk specific to this image: `fail2ban-client reload` does not fully reapply changes and can leave a jail with no action attached. Restarting the container with `docker compose restart` is the reliable way to apply config edits.
+
 -----
 
 ## What I learned
