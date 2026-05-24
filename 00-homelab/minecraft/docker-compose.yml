@@ -1,0 +1,17 @@
+services:
+  Minecraft:
+    image: itzg/minecraft-bedrock-server
+    container_name: Minecraft
+    network_mode: host
+    volumes:
+      - ./data:/data
+    environment:
+      EULA: "TRUE"
+      VERSION: "latest"
+      AUTO_UPDATE: "true"
+      ENABLE_BACKUPS: "true"
+      BACKUP_INTERVAL: "24h"
+      BACKUP_KEEP: "7"
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
