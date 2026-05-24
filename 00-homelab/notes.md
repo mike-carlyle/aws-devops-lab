@@ -226,7 +226,6 @@ The container is configured with automatic world backups on a daily schedule wit
 ## What’s next
 
 - Update architecture diagram to include Duplicati and Minecraft
-- Add Minecraft docker-compose file to repo
 - Add Minecraft world backups to Duplicati config
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
