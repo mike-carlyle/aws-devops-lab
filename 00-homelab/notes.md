@@ -183,6 +183,12 @@ A test ban against `203.0.113.99` (a documentation-only IP from TEST-NET-3) conf
 
 One quirk specific to this image: `fail2ban-client reload` does not fully reapply changes and can leave a jail with no action attached. Restarting the container with `docker compose restart` is the reliable way to apply config edits.
 
+### Tightening UFW for SSH and Jellyfin
+
+A review of the running UFW rules showed that SSH and Jellyfin had been added with `ufw allow 22/tcp` and `ufw allow 8096`, permitting traffic from any source. Other services (Portainer, Duplicati, AdGuard's admin pages) had no UFW rules at all and relied on the default-deny policy to stay locally reachable only. The wildcard entries were inconsistent with the rest of the policy and left the firewall more open than the LAN-plus-Tailscale trust model required.
+
+The fix was to add explicit allow rules for both ports from `192.168.1.0/24` and `100.64.0.0/10`, then delete the wildcards. With default-deny still in place, no explicit deny rules are needed. A second SSH session was kept open as a safety net during the change, and the new policy was verified from the LAN and from a phone connected via Tailscale with Wi-Fi disabled.
+
 -----
 
 ## What I learned
