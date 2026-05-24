@@ -121,6 +121,21 @@ docker exec watchtower /watchtower --run-once
 
 After the change Watchtower successfully scanned all running containers and sent notification emails reporting available updates for Portainer and AdGuard Home, confirming that both container discovery and notifications are working correctly.
 
+### Watchtower API mismatch and fork migration
+
+Around six months after setup, Watchtower started emailing the same error every minute and had to be stopped:
+
+```
+Error response from daemon: client version 1.25 is too old.
+Minimum supported API version is 1.44, please upgrade your client to a newer version
+```
+
+Docker had been upgraded to version 29 by unattended-upgrades, which raised the minimum supported client API to 1.44. The containrrr/watchtower image embeds its own Docker client, and the image had not been rebuilt since November 2023. Pulling `:latest` made no difference, as the upstream project has effectively been abandoned.
+
+The fix was to migrate to a maintained community fork. `nickfedor/watchtower` is the most active continuation, with regular releases and full drop-in compatibility, using the same labels, environment variables and CLI flags. Switching was a one-line change in the compose file, pinning to the 1.17 minor tag so future major bumps do not happen unattended.
+
+After the switch the new container logged `Watchtower 1.17.1 using Docker API v1.52` and an immediate scan picked up an available netdata update (2.10.1 to 2.10.3), confirming both the daemon connection and the SMTP notification path were working end to end.
+
 ### Replacing Pi-hole with AdGuard Home
 
 Pi-hole was the original choice for network-wide DNS ad blocking. The web UI was accessible and the container ran without issues, but two problems prevented it from working properly. The password configuration was not saving correctly, and pointing the Tenda MX12 mesh router to use it as the primary DNS server consistently failed. Research suggested AdGuard Home tends to work more reliably with this router, so the decision was made to switch rather than continue troubleshooting.
