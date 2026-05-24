@@ -1,0 +1,19 @@
+[DEFAULT]
+# Ban for 1 hour after 5 failures within 10 minutes
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+# Never ban LAN or Tailscale clients
+# 100.64.0.0/10 is the Tailscale CGNAT range
+ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24 100.64.0.0/10
+
+# Use iptables for banning (host network mode + NET_ADMIN gives access)
+banaction = iptables-multiport
+backend   = auto
+
+[sshd]
+enabled  = true
+port     = ssh
+logpath  = /var/log/auth.log
+action   = iptables-multiport[name=sshd, port="ssh", protocol=tcp, chain=INPUT]
