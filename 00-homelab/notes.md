@@ -219,14 +219,13 @@ The interesting part of this setup is the Tailscale ACL configuration. Rather th
 
 UFW firewall rules were also added to ensure the Minecraft port is only reachable via the Tailscale subnet, adding a second layer of access control.
 
-The container is configured with automatic world backups on a daily schedule with a retention policy. Watchtower labels are included so container image updates are handled automatically. World backups to OneDrive via Duplicati are planned as a next step.
+The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`, `BACKUP_INTERVAL` and `BACKUP_KEEP` environment variables belong to the Java-edition image, not bedrock). Pre-upgrade snapshots are still created in `/data/backup-pre-<version>/` when `AUTO_UPDATE` bumps the Bedrock version, providing rollback safety against bad releases. Scheduled world backups are handled separately by Duplicati, which picks up the world files from the mounted `/data` volume as part of the daily 22:00 job. Watchtower labels are included so container image updates are handled automatically.
 
 -----
 
 ## What’s next
 
 - Update architecture diagram to include Duplicati and Minecraft
-- Add Minecraft world backups to Duplicati config
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
 
 -----
