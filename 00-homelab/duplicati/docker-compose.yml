@@ -1,0 +1,19 @@
+services:
+  duplicati:
+    image: lscr.io/linuxserver/duplicati:development
+#    image: lscr.io/linuxserver/duplicati:latest
+    container_name: duplicati
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES=*
+      - DUPLICATI__WEBSERVICE_PASSWORD=${DUPLICATI__WEBSERVICE_PASSWORD}
+      - SETTINGS_ENCRYPTION_KEY=${SETTINGS_ENCRYPTION_KEY}
+    volumes:
+      - /home/mike/duplicati/config:/config
+      - /home/mike:/source/home:ro
+      - /etc:/source/etc:ro
+    ports:
+      - 8200:8200
+    restart: unless-stopped

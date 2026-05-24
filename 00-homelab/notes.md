@@ -189,6 +189,14 @@ A review of the running UFW rules showed that SSH and Jellyfin had been added wi
 
 The fix was to add explicit allow rules for both ports from `192.168.1.0/24` and `100.64.0.0/10`, then delete the wildcards. With default-deny still in place, no explicit deny rules are needed. A second SSH session was kept open as a safety net during the change, and the new policy was verified from the LAN and from a phone connected via Tailscale with Wi-Fi disabled.
 
+### Moving service secrets out of compose files
+
+Three docker-compose files held secrets in plaintext at world-readable file mode: the Duplicati web UI password and database encryption key, the Watchtower Gmail SMTP password, and the qBittorrent stack's Mullvad WireGuard private key. The repository already had `.env` in `.gitignore`, but the live compose files on the server were not following that pattern.
+
+The fix was to extract each secret into a `.env` file alongside its compose file, set mode `0600` on each, and replace the inline values with `${VARIABLE}` substitutions in the compose. While doing this the Duplicati web UI password was rotated from the weak default to a long random value, and the `SETTINGS_ENCRYPTION_KEY` was preserved exactly as-is so the existing Duplicati config database remained decryptable. Watchtower was force-recreated to confirm the env var was being read correctly, and Duplicati was tested with the new password via the web UI.
+
+The compose files are now safe to commit publicly. The `.env` pattern is the standard going forward for any new service with credentials.
+
 -----
 
 ## What I learned
@@ -218,7 +226,6 @@ The container is configured with automatic world backups on a daily schedule wit
 ## What’s next
 
 - Update architecture diagram to include Duplicati and Minecraft
-- Add Duplicati docker-compose file to repo
 - Add Minecraft docker-compose file to repo
 - Add Minecraft world backups to Duplicati config
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
