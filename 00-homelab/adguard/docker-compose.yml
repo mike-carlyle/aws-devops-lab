@@ -9,8 +9,6 @@ services:
       - "53:53/tcp"
       - "53:53/udp"
       - "80:80"       # web UI HTTP
-      - "443:443"     # web UI HTTPS
-      - "3000:3000"   # optional alternative web port
     volumes:
       - ./work:/opt/adguardhome/work
       - ./conf:/opt/adguardhome/conf
