@@ -27,6 +27,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 |Duplicati        |Automated backups to OneDrive |8200     |
 |Minecraft Bedrock|Private game server           |19132 UDP|
 |fail2ban         |SSH brute-force protection    |-        |
+|Caddy            |Reverse proxy with basic auth |19999    |
 
 -----
 
@@ -196,6 +197,12 @@ Three docker-compose files held secrets in plaintext at world-readable file mode
 The fix was to extract each secret into a `.env` file alongside its compose file, set mode `0600` on each, and replace the inline values with `${VARIABLE}` substitutions in the compose. While doing this the Duplicati web UI password was rotated from the weak default to a long random value, and the `SETTINGS_ENCRYPTION_KEY` was preserved exactly as-is so the existing Duplicati config database remained decryptable. Watchtower was force-recreated to confirm the env var was being read correctly, and Duplicati was tested with the new password via the web UI.
 
 The compose files are now safe to commit publicly. The `.env` pattern is the standard going forward for any new service with credentials.
+
+### Putting Netdata behind authentication
+
+The Netdata web UI had been reachable without authentication. UFW restricted external access to LAN and Tailscale only, but any client on either network could read full system metrics and the Netdata Cloud claim ID without credentials. The fix was to add a small reverse proxy in front.
+
+A Caddy container was added in `~/caddy/` with `network_mode: host`. Its Caddyfile listens on port 19999 with HTTP basic auth and proxies authenticated requests to `localhost:19998`. The Netdata compose was updated to bind to `127.0.0.1:19998:19999` so the dashboard is no longer reachable from outside the host's loopback interface. The bcrypt password hash sits in a `.env` file at mode `0600`, referenced as `${BASIC_AUTH_HASH}` so no secret lands in the compose. Verification was done with curl from the host (401 without credentials, 401 with wrong credentials, refused for direct hits to the Netdata port) and from a browser on both the LAN and via Tailscale.
 
 -----
 

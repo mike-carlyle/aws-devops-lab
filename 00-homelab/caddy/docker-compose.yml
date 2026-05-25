@@ -1,0 +1,14 @@
+services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    network_mode: host
+    environment:
+      - BASIC_AUTH_HASH=${BASIC_AUTH_HASH}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data:/data
+      - ./config:/config
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
