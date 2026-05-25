@@ -1,0 +1,10 @@
+# Reverse-proxy with HTTP basic auth in front of Netdata.
+# Browser connects to host port 19999. Caddy validates auth, then proxies
+# to Netdata which is bound to localhost:19998 (not reachable externally).
+
+:19999 {
+	basic_auth {
+		mike {$BASIC_AUTH_HASH}
+	}
+	reverse_proxy localhost:19998
+}
