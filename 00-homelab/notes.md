@@ -205,6 +205,38 @@ The Netdata web UI had been reachable without authentication. UFW restricted ext
 
 A Caddy container was added in `~/caddy/` with `network_mode: host`. Its Caddyfile listens on port 19999 with HTTP basic auth and proxies authenticated requests to `localhost:19998`. The Netdata compose was updated to bind to `127.0.0.1:19998:19999` so the dashboard is no longer reachable from outside the host's loopback interface. The bcrypt password hash sits in a `.env` file at mode `0600`, referenced as `${BASIC_AUTH_HASH}` so no secret lands in the compose. Verification was done with curl from the host (401 without credentials, 401 with wrong credentials, refused for direct hits to the Netdata port) and from a browser on both the LAN and via Tailscale.
 
+### Enabling Tailnet Lock
+
+Tailnet Lock was enabled to protect against a Tailscale account takeover. Without lock, anyone with access to the Tailscale account could add an arbitrary device to the tailnet and gain reachability to internal services. With lock enabled, any new device joining the tailnet must be cryptographically signed by an existing trusted node before it can connect, and existing peers are unaffected.
+
+Lock was initialised on the homeserver with `tailscale lock init --gen-disablement-for-support --gen-disablements=2 tlpub:<server-key>`. The first attempt failed because the command requires the current node's tailnet-lock public key to be explicitly listed as a trusted signer rather than added implicitly; passing the key as an argument on the second attempt succeeded. The two disablement secrets were stored in Bitwarden immediately. A third disablement secret was generated for Tailscale support, so even if both local secrets are ever lost there is still a recovery path.
+
+The trade-off is that adding any new device to the tailnet now requires a `tailscale lock sign` step from the server. A small recurring cost for a meaningful reduction in account-takeover blast radius.
+
+### Adding DNSSEC validation to AdGuard
+
+Enabling DNSSEC validation in AdGuard turned out to be a two-step exercise rather than a single toggle. The DNSSEC option in AdGuard's settings was switched on, but a test against `dnssec-failed.org` (a domain published with intentionally broken signatures specifically for this purpose) revealed AdGuard was returning the A record rather than `SERVFAIL`. The cause was the upstream resolver configuration: AdGuard was set to `https://dns10.quad9.net/dns-query`, which is Quad9's variant that explicitly disables DNSSEC validation. AdGuard could set the `DO` bit on outbound queries but had nothing to validate against because Quad9's `dns10` strips DNSSEC records before returning.
+
+The fix was to change the upstream to `https://dns.quad9.net/dns-query`, Quad9's standard secure-with-DNSSEC endpoint. After the change, `dnssec-failed.org` correctly returns `SERVFAIL` while legitimate domains continue to resolve normally. The difference between Quad9 variants is documented on their site but easy to miss when picking an upstream from a list.
+
+### Capping Docker container log sizes
+
+The Docker daemon's default JSON-file log driver does not rotate or cap log file sizes. A noisy or compromised container could fill the host disk with logs indefinitely. A small `/etc/docker/daemon.json` was added setting `max-size: "10m"` and `max-file: "3"` so each container is capped at thirty megabytes of retained logs. Existing containers were force-recreated to inherit the new defaults, so the cap is now consistent across the stack rather than waiting for natural attrition via Watchtower-driven updates.
+
+### Hardening the Docker socket with a proxy
+
+Watchtower previously had read-write access to `/var/run/docker.sock`. A compromise of the Watchtower container, for example via a supply-chain attack on the image, would have meant full Docker API access and effectively host root. A `tecnativa/docker-socket-proxy` container was added in front of Watchtower to restrict the API surface to only what Watchtower actually needs: list and inspect containers, list and inspect images, send POST requests to start and stop containers, watch events, and a few read-only endpoints (info, ping, version). Volumes, exec, networks, secrets and swarm endpoints all stay denied at the proxy.
+
+Verification was done by querying allowed endpoints from within the proxy network and confirming `200`, then querying denied endpoints and confirming `403`. Watchtower itself was verified by running a single-shot scan and confirming all containers were scanned with no failures. Portainer was left with direct socket access because its purpose as a Docker management UI means it needs broad API access anyway; limiting Portainer through a proxy would either break it or leave it almost as permissive as direct access.
+
+### Switching to SSH key authentication
+
+The SSH login flow was hardened from password authentication to public-key authentication. The risk model for the home server had originally accepted password auth because the router did not forward port 22 to the outside world and fail2ban was watching the auth log, but neither protection makes the authentication itself stronger. A compromised LAN device or a router configuration change would have left an unprotected attack surface against the `mike` account.
+
+An ed25519 keypair was generated on the Mac laptop and a separate keypair was generated on the iPhone via Termius, following the principle that each device gets its own key so revocation is per-device. The public keys were appended to `/home/mike/.ssh/authorized_keys` on the server, labelled with the device and date for clarity. Both private keys were backed up to Bitwarden with their passphrases.
+
+The hardening on the server side was done with a new file at `/etc/ssh/sshd_config.d/00-hardening.conf` setting `PasswordAuthentication no`, `PubkeyAuthentication yes`, `KbdInteractiveAuthentication no`, `X11Forwarding no` and explicitly `PermitRootLogin prohibit-password`. The initial attempt used filename `99-hardening.conf` but the effective `PasswordAuthentication` remained `yes`. The cause was Ubuntu's `50-cloud-init.conf`, which sets `PasswordAuthentication yes` and is read before our override; OpenSSH uses first-match-wins for directives, so the cloud-init value was winning. Renaming the file to `00-hardening.conf` so it sorts first resolved this. After `sshd -t` validation and a graceful `systemctl reload ssh`, password authentication was confirmed to be rejected while key authentication continued to work from both Mac and iPhone. The whole change was performed with a second SSH session kept open as a safety net.
+
 ### Adding Homepage as a service dashboard
 
 After the homelab had accumulated nine containers across different ports and four web UIs at different paths, navigating to the right URL by memory had become tedious. Homepage was added as a single landing page at `http://mchomeserver:3000/` that lists every service with its description, status indicator and a one-click access link, alongside live data widgets and a local weather panel.
