@@ -56,11 +56,13 @@ aws-devops-lab/
 **Homelab and Linux**
 - Ubuntu Server administration on self-built hardware
 - Docker and container networking including network isolation patterns, network access control via Tailscale ACLs, with compose files documented for each service
-- Running and managing services including Jellyfin, AdGuard Home, Tailscale, Netdata, Portainer, Watchtower, Duplicati, fail2ban, Caddy, and a private Minecraft Bedrock server
+- Running and managing services including Jellyfin, AdGuard Home, Tailscale, Netdata, Portainer, Watchtower, Duplicati, fail2ban, Caddy, Homepage, and a private Minecraft Bedrock server
 - Remote access via Tailscale mesh VPN and Magic DNS
 - Automated OS patching with unattended-upgrades and automated cloud backups with Duplicati
 - Automated container updates with Watchtower
-- Network and access hardening with UFW per-service rules, fail2ban for SSH brute-force protection, and Caddy as a reverse proxy adding basic auth in front of services that lack their own
+- Identity and access hardening including SSH key-only authentication with per-device keypairs, UFW per-service rules, fail2ban for SSH brute-force protection, Tailnet Lock protecting against Tailscale account takeover, DNSSEC validation in AdGuard, and Caddy as a reverse proxy adding basic auth in front of services that lack their own
+- Docker API surface reduction using a socket proxy in front of Watchtower so its Docker access is limited to a minimal endpoint allowlist rather than full daemon access
+- Container observability via Homepage as a service dashboard with live widgets reading from each service's API
 - Secrets managed via per-service `.env` files alongside docker-compose, kept out of version control
 - Email notifications via msmtp and Gmail for automated events
 - DNS troubleshooting and resolving real infrastructure problems
