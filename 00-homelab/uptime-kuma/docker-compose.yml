@@ -1,0 +1,13 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    # Host network mode so probes against host-network-bound services
+    # (Jellyfin, SSH, Minecraft) appear as host-originated and match
+    # the existing LAN/Tailscale UFW allow rules.
+    network_mode: host
+    volumes:
+      - ./data:/app/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

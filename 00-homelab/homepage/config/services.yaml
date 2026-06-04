@@ -87,6 +87,13 @@
           url: http://watchtower:8080
           key: "{{HOMEPAGE_VAR_WATCHTOWER_TOKEN}}"
 
+    - Uptime Kuma:
+        icon: uptime-kuma.svg
+        href: http://192.168.1.10:3001
+        description: Service uptime monitoring with email alerts
+        server: my-docker
+        container: uptime-kuma
+
     - fail2ban:
         icon: fail2ban.svg
         description: SSH brute-force protection

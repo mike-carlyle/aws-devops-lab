@@ -29,6 +29,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 |fail2ban         |SSH brute-force protection    |-        |
 |Caddy            |Reverse proxy with basic auth |19999    |
 |Homepage         |Service dashboard             |3000     |
+|Uptime Kuma      |Uptime monitoring + alerts    |3001     |
 
 -----
 
@@ -244,6 +245,14 @@ After the homelab had accumulated nine containers across different ports and fou
 The container is `ghcr.io/gethomepage/homepage:latest`. It reads YAML config files in `~/homepage/config/` for services, widgets, bookmarks and global settings. Live container status comes from a read-only mount of `/var/run/docker.sock`. Widget integrations were added for AdGuard (queries and block stats), Jellyfin (library counts), Portainer (running containers) and Watchtower (scan and update counts). The Watchtower integration required enabling that container's HTTP metrics API and attaching Homepage to Watchtower's internal `docker-proxy` network so the metrics endpoint never has to be exposed on the host. All credentials and API keys live in a `.env` file at mode `0600`, referenced from the YAML config via `${HOMEPAGE_VAR_*}` substitution, matching the rest of the stack's secrets pattern.
 
 The container runs as root inside its namespace because Homepage's docker integration requires socket access that PUID-style privilege dropping does not carry through cleanly. Container namespace isolation makes this acceptable: it is "root inside the container", not host root.
+
+### Adding Uptime Kuma for service availability alerting
+
+Netdata gives deep performance metrics but does not actively alert when a service stops responding. Uptime Kuma fills that gap. It probes each service on a 60-second interval and sends an email when any monitor goes down. Together the two tools cover both observability (Netdata) and proactive alerting (Uptime Kuma).
+
+The container is `louislam/uptime-kuma:1`. It started in bridge mode but had to be moved to `network_mode: host` because some target services (Jellyfin, SSH and Minecraft) use host networking, so UFW filters connections to them as host-bound traffic. From a Docker bridge, Uptime Kuma's source IP did not match the existing LAN or Tailscale allow rules and UFW dropped the probes. In host network mode, Uptime Kuma's probes originate from the host and pass UFW cleanly. Services using Docker port-mapping (AdGuard, Duplicati, Portainer, Homepage) worked from either mode because Docker's NAT path bypasses UFW.
+
+Monitors were added for every running service plus a public-internet ping and a Tailscale self-ping. The Netdata monitor accepts HTTP `401` rather than `200-299`, because the Caddy basic-auth challenge is itself proof that the proxy chain is alive. Email notifications use a dedicated Gmail app password labelled `uptime-kuma`, kept separate from the existing Watchtower and unattended-upgrades app passwords so each can be revoked independently.
 
 -----
 
