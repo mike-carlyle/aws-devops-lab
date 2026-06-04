@@ -1,15 +1,45 @@
 services:
+  # Hardened Docker socket proxy.
+  # Exposes only the subset of the Docker API that Watchtower actually needs,
+  # instead of giving Watchtower full RW access to /var/run/docker.sock.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: socket-proxy
+    restart: unless-stopped
+    environment:
+      # Endpoints Watchtower needs:
+      CONTAINERS: 1   # list and inspect containers
+      IMAGES: 1       # pull and inspect images
+      POST: 1         # start, stop, restart, recreate containers
+      EVENTS: 1       # watch for container lifecycle events
+      INFO: 1         # daemon info
+      PING: 1         # health check
+      VERSION: 1      # API version negotiation
+      # Everything else stays at the safe default of 0 (denied):
+      # AUTH, BUILD, COMMIT, CONFIGS, DISTRIBUTION, EXEC, GRPC,
+      # NETWORKS, NODES, PLUGINS, SECRETS, SERVICES, SESSION,
+      # SWARM, SYSTEM, TASKS, VOLUMES
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-proxy
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
   watchtower:
     image: nickfedor/watchtower:1.17
     container_name: watchtower
     restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - socket-proxy
+    networks:
+      - docker-proxy
     command: >
       --interval 3600
       --cleanup
       --label-enable
     environment:
+      - DOCKER_HOST=tcp://socket-proxy:2375
       - WATCHTOWER_NOTIFICATIONS=email
       - WATCHTOWER_NOTIFICATION_EMAIL_FROM=michael.carlyle21@gmail.com
       - WATCHTOWER_NOTIFICATION_EMAIL_TO=michael.carlyle21@gmail.com
@@ -19,3 +49,7 @@ services:
       - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD}
     labels:
       - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  docker-proxy:
+    driver: bridge
