@@ -23,6 +23,8 @@ services:
       - HOMEPAGE_VAR_PORTAINER_TOKEN=${HOMEPAGE_VAR_PORTAINER_TOKEN}
       - HOMEPAGE_VAR_DUPLICATI_PASSWORD=${HOMEPAGE_VAR_DUPLICATI_PASSWORD}
       - HOMEPAGE_VAR_WATCHTOWER_TOKEN=${HOMEPAGE_VAR_WATCHTOWER_TOKEN}
+      - HOMEPAGE_VAR_WEATHER_LAT=${HOMEPAGE_VAR_WEATHER_LAT}
+      - HOMEPAGE_VAR_WEATHER_LON=${HOMEPAGE_VAR_WEATHER_LON}
     # Attach to Watchtower's internal network so we can query its metrics
     # endpoint at http://watchtower:8080 without exposing it to the host.
     networks:
