@@ -1,0 +1,37 @@
+# Homepage global settings
+# See https://gethomepage.dev/configs/settings/
+
+title: mchomeserver
+theme: dark
+color: slate
+
+# Layout: how categories are arranged on the page
+layout:
+  Media:
+    style: row
+    columns: 3
+  Network & DNS:
+    style: row
+    columns: 3
+  Backups & Management:
+    style: row
+    columns: 3
+  Games:
+    style: row
+    columns: 3
+
+# Header style: clean and minimal
+headerStyle: clean
+
+# Use full container width
+fullWidth: false
+
+# Background colour
+background:
+  blur: sm
+  saturate: 50
+  brightness: 50
+  opacity: 50
+
+# Statistics block in the header
+statusStyle: dot

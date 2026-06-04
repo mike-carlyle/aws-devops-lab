@@ -28,6 +28,7 @@ A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 
 |Minecraft Bedrock|Private game server           |19132 UDP|
 |fail2ban         |SSH brute-force protection    |-        |
 |Caddy            |Reverse proxy with basic auth |19999    |
+|Homepage         |Service dashboard             |3000     |
 
 -----
 
@@ -203,6 +204,14 @@ The compose files are now safe to commit publicly. The `.env` pattern is the sta
 The Netdata web UI had been reachable without authentication. UFW restricted external access to LAN and Tailscale only, but any client on either network could read full system metrics and the Netdata Cloud claim ID without credentials. The fix was to add a small reverse proxy in front.
 
 A Caddy container was added in `~/caddy/` with `network_mode: host`. Its Caddyfile listens on port 19999 with HTTP basic auth and proxies authenticated requests to `localhost:19998`. The Netdata compose was updated to bind to `127.0.0.1:19998:19999` so the dashboard is no longer reachable from outside the host's loopback interface. The bcrypt password hash sits in a `.env` file at mode `0600`, referenced as `${BASIC_AUTH_HASH}` so no secret lands in the compose. Verification was done with curl from the host (401 without credentials, 401 with wrong credentials, refused for direct hits to the Netdata port) and from a browser on both the LAN and via Tailscale.
+
+### Adding Homepage as a service dashboard
+
+After the homelab had accumulated nine containers across different ports and four web UIs at different paths, navigating to the right URL by memory had become tedious. Homepage was added as a single landing page at `http://mchomeserver:3000/` that lists every service with its description, status indicator and a one-click access link, alongside live data widgets and a local weather panel.
+
+The container is `ghcr.io/gethomepage/homepage:latest`. It reads YAML config files in `~/homepage/config/` for services, widgets, bookmarks and global settings. Live container status comes from a read-only mount of `/var/run/docker.sock`. Widget integrations were added for AdGuard (queries and block stats), Jellyfin (library counts), Portainer (running containers) and Watchtower (scan and update counts). The Watchtower integration required enabling that container's HTTP metrics API and attaching Homepage to Watchtower's internal `docker-proxy` network so the metrics endpoint never has to be exposed on the host. All credentials and API keys live in a `.env` file at mode `0600`, referenced from the YAML config via `${HOMEPAGE_VAR_*}` substitution, matching the rest of the stack's secrets pattern.
+
+The container runs as root inside its namespace because Homepage's docker integration requires socket access that PUID-style privilege dropping does not carry through cleanly. Container namespace isolation makes this acceptable: it is "root inside the container", not host root.
 
 -----
 

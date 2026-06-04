@@ -40,6 +40,10 @@ services:
       --label-enable
     environment:
       - DOCKER_HOST=tcp://socket-proxy:2375
+      # HTTP metrics endpoint so Homepage can display live scan/update counts.
+      # Reachable only on the internal docker-proxy network — no host port exposure.
+      - WATCHTOWER_HTTP_API_METRICS=true
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_HTTP_API_TOKEN}
       - WATCHTOWER_NOTIFICATIONS=email
       - WATCHTOWER_NOTIFICATION_EMAIL_FROM=michael.carlyle21@gmail.com
       - WATCHTOWER_NOTIFICATION_EMAIL_TO=michael.carlyle21@gmail.com

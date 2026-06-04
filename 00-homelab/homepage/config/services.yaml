@@ -1,0 +1,100 @@
+# Homepage services config
+# Widgets read live data from each service. Credentials live in .env (mode 600)
+# and are referenced as {{HOMEPAGE_VAR_*}}.
+
+- Media:
+    - Jellyfin:
+        icon: jellyfin.svg
+        href: http://192.168.1.10:8096
+        description: Movies, TV and audio
+        server: my-docker
+        container: jellyfin
+        widget:
+          type: jellyfin
+          url: http://192.168.1.10:8096
+          key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+          enableNowPlaying: true
+          enableBlocks: true
+          enableUser: false
+
+    - Minecraft:
+        icon: minecraft.svg
+        description: Bedrock server (Tailscale only, UDP 19132)
+        server: my-docker
+        container: Minecraft
+
+- Network & DNS:
+    - AdGuard Home:
+        icon: adguard-home.svg
+        href: http://192.168.1.10/
+        description: Network-wide DNS ad-blocking + DNSSEC
+        server: my-docker
+        container: adguardhome
+        widget:
+          type: adguard
+          url: http://192.168.1.10
+          username: "{{HOMEPAGE_VAR_ADGUARD_USERNAME}}"
+          password: "{{HOMEPAGE_VAR_ADGUARD_PASSWORD}}"
+
+    - Tailscale:
+        icon: tailscale.svg
+        href: https://login.tailscale.com/admin/machines
+        description: Mesh VPN — Tailnet Lock enabled (Tailnet Lock signing on this node)
+
+    - Caddy:
+        icon: caddy.svg
+        description: Reverse proxy with basic-auth (fronts Netdata)
+        server: my-docker
+        container: caddy
+
+- Backups & Management:
+    - Duplicati:
+        icon: duplicati.svg
+        href: http://192.168.1.10:8200
+        description: Encrypted daily backups to OneDrive
+        server: my-docker
+        container: duplicati
+        # No built-in Duplicati widget in Homepage. A customapi widget could
+        # query Duplicati's REST API for last backup time / status — left as a
+        # future enhancement.
+
+    - Portainer:
+        icon: portainer.svg
+        href: http://192.168.1.10:9000
+        description: Docker container management UI
+        server: my-docker
+        container: portainer
+        widget:
+          type: portainer
+          url: http://192.168.1.10:9000
+          env: 1
+          key: "{{HOMEPAGE_VAR_PORTAINER_TOKEN}}"
+
+    - Netdata:
+        icon: netdata.svg
+        href: http://192.168.1.10:19999
+        description: System and container monitoring (behind Caddy auth)
+        server: my-docker
+        container: netdata
+
+    - Watchtower:
+        icon: watchtower.svg
+        description: Automated container image updates (hourly)
+        server: my-docker
+        container: watchtower
+        widget:
+          type: watchtower
+          url: http://watchtower:8080
+          key: "{{HOMEPAGE_VAR_WATCHTOWER_TOKEN}}"
+
+    - fail2ban:
+        icon: fail2ban.svg
+        description: SSH brute-force protection
+        server: my-docker
+        container: fail2ban
+
+    - Socket Proxy:
+        icon: docker.svg
+        description: Hardened Docker API proxy in front of Watchtower
+        server: my-docker
+        container: socket-proxy

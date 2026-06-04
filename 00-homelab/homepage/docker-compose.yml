@@ -1,0 +1,37 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # Run as root inside the container so it can read /var/run/docker.sock.
+    # Container namespace isolation still applies — this is "root inside container",
+    # not host root. Homepage's docs recommend this pattern when using docker integration.
+    user: "0:0"
+    volumes:
+      - ./config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ=Europe/London
+      # CSRF protection — must include every hostname/IP you'll access Homepage from
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.10:3000,mchomeserver:3000,100.68.102.75:3000,localhost:3000
+      # Service API credentials — values come from .env (gitignored, mode 0600)
+      - HOMEPAGE_VAR_ADGUARD_USERNAME=${HOMEPAGE_VAR_ADGUARD_USERNAME}
+      - HOMEPAGE_VAR_ADGUARD_PASSWORD=${HOMEPAGE_VAR_ADGUARD_PASSWORD}
+      - HOMEPAGE_VAR_JELLYFIN_API_KEY=${HOMEPAGE_VAR_JELLYFIN_API_KEY}
+      - HOMEPAGE_VAR_PORTAINER_TOKEN=${HOMEPAGE_VAR_PORTAINER_TOKEN}
+      - HOMEPAGE_VAR_DUPLICATI_PASSWORD=${HOMEPAGE_VAR_DUPLICATI_PASSWORD}
+      - HOMEPAGE_VAR_WATCHTOWER_TOKEN=${HOMEPAGE_VAR_WATCHTOWER_TOKEN}
+    # Attach to Watchtower's internal network so we can query its metrics
+    # endpoint at http://watchtower:8080 without exposing it to the host.
+    networks:
+      - default
+      - watchtower-proxy
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  watchtower-proxy:
+    external: true
+    name: watchtower_docker-proxy

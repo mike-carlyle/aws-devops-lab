@@ -1,0 +1,29 @@
+# Homepage bookmarks
+# Personal/external links — edit freely
+
+- Developer:
+    - GitHub:
+        - abbr: GH
+          href: https://github.com/mike-carlyle
+
+    - aws-devops-lab:
+        - abbr: AWS
+          href: https://github.com/mike-carlyle/aws-devops-lab
+
+- AWS Learning:
+    - Stephane Maarek SAA course:
+        - abbr: SAA
+          href: https://www.udemy.com/
+
+    - AWS Console:
+        - abbr: AWS
+          href: https://aws.amazon.com/console/
+
+- Cloud:
+    - Bitwarden:
+        - abbr: BW
+          href: https://vault.bitwarden.com/
+
+    - OneDrive:
+        - abbr: OD
+          href: https://onedrive.live.com/

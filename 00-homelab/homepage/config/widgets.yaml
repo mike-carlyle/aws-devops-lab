@@ -1,0 +1,38 @@
+# Homepage info widgets
+# See https://gethomepage.dev/widgets/info/
+
+# Weather — free, no API key needed.
+# Update latitude/longitude to your actual location for accurate forecasts.
+- openmeteo:
+    label: Local
+    latitude: {{HOMEPAGE_VAR_WEATHER_LAT}}
+    longitude: {{HOMEPAGE_VAR_WEATHER_LON}}
+    timezone: Europe/London
+    units: metric
+    cache: 5
+
+# Greeting / hostname
+- greeting:
+    text_size: xl
+    text: "mchomeserver"
+
+# Local time
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: short
+      dateStyle: long
+      hourCycle: h23
+
+# Live host resources
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+    cputemp: true
+    units: metric
+
+# Search bar
+- search:
+    provider: google
+    target: _blank

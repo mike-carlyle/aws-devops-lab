@@ -1,0 +1,6 @@
+# Homepage docker integration
+# Lets services with 'server: my-docker' show live container status (running/stopped, CPU, memory)
+# See https://gethomepage.dev/configs/docker/
+
+my-docker:
+  socket: /var/run/docker.sock
