@@ -50,12 +50,15 @@ ufw_rules:
   - {rule: allow, port: "53", proto: udp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS UDP"}
 
   # Caddy → Netdata (basic auth in front of monitoring UI) — LAN + Tailscale.
-  - {rule: allow, port: "19999", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
-  - {rule: allow, port: "19999", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
+  # No explicit proto: matches existing imprecise rule. Tightening to tcp-only
+  # is a worthwhile future change but kept loose here to codify current reality.
+  - {rule: allow, port: "19999", from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
+  - {rule: allow, port: "19999", from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
 
   # Jellyfin — LAN + Tailscale (host network mode, listens 0.0.0.0:8096).
-  - {rule: allow, port: "8096", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
-  - {rule: allow, port: "8096", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
+  # No explicit proto: matches existing imprecise rule (see note above).
+  - {rule: allow, port: "8096", from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
+  - {rule: allow, port: "8096", from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
 
   # Homepage — LAN + Tailscale.
   - {rule: allow, port: "3000", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Homepage LAN"}

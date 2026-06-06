@@ -37,12 +37,12 @@
   community.general.ufw:
     rule: "{{ item.rule }}"
     port: "{{ item.port | string }}"
-    proto: "{{ item.proto }}"
+    proto: "{{ item.proto | default(omit) }}"
     from_ip: "{{ item.from_ip | default('any') }}"
     comment: "{{ item.comment | default(omit) }}"
   loop: "{{ ufw_rules }}"
   loop_control:
-    label: "{{ item.rule }} {{ item.proto }}/{{ item.port }} from {{ item.from_ip | default('any') }} ({{ item.comment | default('') }})"
+    label: "{{ item.rule }} {{ item.proto | default('any-proto') }}/{{ item.port }} from {{ item.from_ip | default('any') }} ({{ item.comment | default('') }})"
 
 - name: Enable UFW and start the service
   community.general.ufw:
