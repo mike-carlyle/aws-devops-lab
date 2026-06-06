@@ -1,0 +1,26 @@
+# yamllint config for the lab repo.
+# Goal: catch syntax errors and obvious mistakes, not enforce style preferences.
+
+extends: relaxed
+
+rules:
+  # Compose files routinely have long lines (env var assignments, command flags)
+  line-length: disable
+
+  # Compose uses "true"/"false" strings (not bool) in many places by convention.
+  truthy: disable
+
+  # Allow document-start marker to be optional.
+  document-start: disable
+
+  # Comments must have at least one space after #.
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: true
+
+  # Trailing whitespace is still worth catching.
+  trailing-spaces: enable
+
+  # Tabs in YAML are never OK.
+  indentation:
+    spaces: consistent

@@ -1,0 +1,48 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  yamllint:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install --quiet yamllint
+
+      - name: Run yamllint
+        run: yamllint -c .yamllint .
+
+  compose-validate:
+    name: Docker compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate every homelab compose file
+        run: |
+          set -e
+          fail=0
+          for f in homelab/compose/*/docker-compose.yml; do
+            svc_dir=$(dirname "$f")
+            env_flag=""
+            if [ -f "$svc_dir/.env.example" ]; then
+              env_flag="--env-file $svc_dir/.env.example"
+            fi
+            echo ":: Validating $f"
+            if docker compose -f "$f" $env_flag config --quiet; then
+              echo "   ok"
+            else
+              echo "   FAILED"
+              fail=1
+            fi
+          done
+          exit $fail
