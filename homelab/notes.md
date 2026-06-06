@@ -254,6 +254,16 @@ The container is `louislam/uptime-kuma:1`. It started in bridge mode but had to 
 
 Monitors were added for every running service plus a public-internet ping and a Tailscale self-ping. The Netdata monitor accepts HTTP `401` rather than `200-299`, because the Caddy basic-auth challenge is itself proof that the proxy chain is alive. Email notifications use a dedicated Gmail app password labelled `uptime-kuma`, kept separate from the existing Watchtower and unattended-upgrades app passwords so each can be revoked independently.
 
+### Ansible for stack deployment (Phase 1)
+
+Adding `homelab/ansible/` brings the Docker stack under host-as-code management. The first phase scope is deliberately narrow: bringing every service from a fresh checkout of this repo to its running state on the homeserver. Installing Docker itself, configuring UFW, msmtp, sshd hardening, and the rest of the host configuration is reserved for later phases.
+
+The playbook is invoked from a containerised Ansible to avoid installing it on the host. A small `Dockerfile` builds an image on top of `cytopia/ansible:latest-tools` that adds the Docker CLI, the compose plugin and rsync. The wrapper script `run.sh` builds this image on first use, then runs the playbook with the repo, the runtime home directory, and `/var/run/docker.sock` mounted in. The playbook itself targets `localhost` with `connection: local`, so no SSH-to-self is required.
+
+For each service the playbook ensures the runtime directory exists, rsyncs the docker-compose file and any non-secret config from the repo (always excluding `.env` so real secrets on the host are never overwritten), then brings the service up with `docker compose up -d` if a real `.env` is present (or none is required). Services that want to start but lack an `.env` are reported at the end of the run with a clear next-step message.
+
+A dry run with `bash run.sh --check --diff` validates the playbook without touching the box. Idempotency is the design goal: re-running after a successful run should be a no-op aside from any Watchtower image-update bumps.
+
 -----
 
 ## What I learned

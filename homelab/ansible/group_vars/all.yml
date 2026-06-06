@@ -1,0 +1,41 @@
+---
+# Where the repo lives on the target host (used to source compose files).
+# Defaults to the standard clone location; override on the command line if elsewhere:
+#   ansible-playbook deploy-stack.yml -e repo_root=/some/other/path
+repo_root: "{{ lookup('env', 'HOME') }}/aws-devops-lab"
+
+# Where each service's runtime directory lives (mounted by docker-compose).
+service_root: "{{ lookup('env', 'HOME') }}"
+
+# Services to manage. Each entry maps to a directory under both
+# {{ repo_root }}/homelab/compose/<name> (the source of truth) and
+# {{ service_root }}/<name> (the runtime location).
+#
+# 'start' controls whether 'docker compose up -d' is invoked. Set to false for
+# services that should stay stopped (e.g. vpn-stack is intentionally inactive)
+# or services without a real .env in place yet.
+services:
+  - name: adguard
+    start: true
+  - name: caddy
+    start: true
+  - name: duplicati
+    start: true
+  - name: fail2ban
+    start: true
+  - name: homepage
+    start: true
+  - name: jellyfin
+    start: true
+  - name: minecraft
+    start: true
+  - name: netdata
+    start: true
+  - name: portainer
+    start: true
+  - name: uptime-kuma
+    start: true
+  - name: watchtower
+    start: true
+  - name: vpn-stack
+    start: false   # intentionally stopped

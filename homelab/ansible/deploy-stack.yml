@@ -1,0 +1,97 @@
+---
+# Phase 1 — Homelab stack deployment.
+#
+# What this does:
+#   * Ensures each service has its runtime directory under $SERVICE_ROOT
+#   * Syncs docker-compose.yml plus any non-secret config files from
+#     homelab/compose/<service>/ in the repo to the runtime location,
+#     never overwriting a real .env on the host
+#   * Brings up services whose .env (if required) is already in place
+#   * Reports any services held back because their .env is missing
+#
+# What this does NOT do (yet):
+#   * Install Docker or any host packages
+#   * Manage host configs (msmtp, UFW, sshd_config.d, unattended-upgrades)
+#   * Manage secrets — .env files stay hand-edited from .env.example
+#
+# Idempotent: running twice in a row should be a no-op apart from image pulls.
+
+- name: Deploy homelab Docker stack
+  hosts: mchomeserver
+  gather_facts: false
+
+  tasks:
+    # ---------- runtime directory + file sync ----------
+
+    - name: Ensure each service's runtime directory exists
+      ansible.builtin.file:
+        path: "{{ service_root }}/{{ item.name }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Sync compose and non-secret configs from repo to runtime
+      # rsync handles per-file change detection cleanly. Excluding .env means
+      # the host's real .env (containing secrets) is never overwritten by the
+      # .env.example tracked in the repo.
+      ansible.builtin.command:
+        cmd: >
+          rsync -a --exclude=.env
+          {{ repo_root }}/homelab/compose/{{ item.name }}/
+          {{ service_root }}/{{ item.name }}/
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: rsync_result
+      changed_when: rsync_result.stdout | length > 0
+
+    # ---------- figure out which services are ready to start ----------
+
+    - name: Check if each service has a usable .env on the runtime host
+      ansible.builtin.stat:
+        path: "{{ service_root }}/{{ item.name }}/.env"
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: env_state
+
+    - name: Check if each service ships an .env.example in the repo
+      ansible.builtin.stat:
+        path: "{{ repo_root }}/homelab/compose/{{ item.name }}/.env.example"
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: env_example_state
+
+    - name: Build sets of (needs-env, has-env, wants-to-start)
+      ansible.builtin.set_fact:
+        services_needing_env: "{{ env_example_state.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item.name') | list }}"
+        services_with_env:    "{{ env_state.results         | selectattr('stat.exists', 'equalto', true) | map(attribute='item.name') | list }}"
+        services_wanting_start: "{{ services | selectattr('start', 'equalto', true) | map(attribute='name') | list }}"
+
+    - name: Compute ready-to-start and held-back lists
+      ansible.builtin.set_fact:
+        # A service is ready to start if it wants to start AND
+        # either it doesn't require an .env, or its .env exists.
+        ready_to_start: "{{ services_wanting_start | difference(services_needing_env | difference(services_with_env)) }}"
+        held_back: "{{ services_wanting_start | intersect(services_needing_env) | difference(services_with_env) }}"
+
+    # ---------- bring up services that are ready ----------
+
+    - name: Pull latest images and start each ready service
+      community.docker.docker_compose_v2:
+        project_src: "{{ service_root }}/{{ item }}"
+        state: present
+        pull: missing
+      loop: "{{ ready_to_start }}"
+
+    - name: Report on services held back due to missing .env
+      ansible.builtin.debug:
+        msg:
+          - "These services are configured to start but their .env file is missing:"
+          - "  {{ held_back }}"
+          - "Action: copy .env.example to .env in each service's runtime directory,"
+          - "        fill in the secret values, and re-run this playbook."
+      when: held_back | length > 0
