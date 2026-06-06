@@ -38,4 +38,4 @@ services:
   - name: watchtower
     start: true
   - name: vpn-stack
-    start: false   # intentionally stopped
+    start: false   # currently stopped; flip to true to bring qBittorrent + Gluetun back up
