@@ -13,11 +13,27 @@
   changed_when: false
   failed_when: docker_version_check.rc != 0
 
-- name: Check docker compose plugin is installed
-  ansible.builtin.command: docker compose version
+# Docker Compose v2 ships in two forms:
+#   * plugin       — /usr/libexec/docker/cli-plugins/docker-compose, invoked as `docker compose`
+#   * standalone   — /usr/local/bin/docker-compose, invoked as `docker-compose`
+# Either is fine for running services on the host (Phase 1 uses the
+# containerised plugin via cytopia/ansible). Accept whichever is present.
+- name: Check docker compose v2 is installed (plugin OR standalone)
+  ansible.builtin.shell: |
+    if docker compose version >/dev/null 2>&1; then
+      docker compose version
+      echo "form=plugin"
+    elif command -v docker-compose >/dev/null 2>&1; then
+      docker-compose --version
+      echo "form=standalone"
+    else
+      echo "neither 'docker compose' (plugin) nor 'docker-compose' (standalone) found" >&2
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
   register: compose_version_check
   changed_when: false
-  failed_when: compose_version_check.rc != 0
 
 - name: Ensure docker service is enabled and running
   ansible.builtin.systemd:
@@ -51,4 +67,4 @@
   ansible.builtin.debug:
     msg:
       - "Docker engine: {{ docker_version_check.stdout }}"
-      - "Compose plugin: {{ compose_version_check.stdout }}"
+      - "Docker compose: {{ compose_version_check.stdout }}"
