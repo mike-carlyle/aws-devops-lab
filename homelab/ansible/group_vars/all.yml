@@ -22,41 +22,51 @@ tailscale_cidr: "100.64.0.0/10"
 msmtp_smtp_host: "smtp.gmail.com"
 msmtp_smtp_port: 587
 
-# UFW ruleset — declarative source of truth. Each entry becomes a rule.
-# Order doesn't matter (ufw resolves overlap by specificity), but list LAN
-# allows before broader rules for readability.
+# UFW ruleset — codified from the actual current state on mchomeserver
+# (captured 2026-06-06 via `sudo ufw status verbose`).
+#
+# Model:
+#   * UFW filters LAN + internet traffic.
+#   * Tailscale's own iptables rules let tailnet traffic reach services on
+#     the tailscale0 interface, bypassing UFW. That's why management UIs
+#     (Portainer:9000, Duplicati:8200, AdGuard admin:80) listen on
+#     0.0.0.0 but have NO UFW allow rules — they're Tailscale-only by
+#     virtue of UFW blocking LAN/internet access.
+#   * Rules below are additive — community.general.ufw adds them if
+#     missing, never removes ones not listed here. To remove a rule on
+#     the host, do it manually first (`sudo ufw delete <num>`).
+#
+# Default policies (set by the ufw role): deny incoming, allow outgoing,
+# deny routed. The "DENY IN Anywhere" rules for 53/19999/19132 currently
+# on the host are redundant with default-deny and intentionally NOT
+# codified here to keep the list scannable.
 ufw_rules:
-  # SSH — allow from anywhere (Tailscale-only would lock us out if tailnet flakes).
-  - {rule: allow, port: 22, proto: tcp, comment: "SSH"}
+  # SSH — LAN + Tailscale only. NOT internet-facing.
+  - {rule: allow, port: "22", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "SSH LAN"}
+  - {rule: allow, port: "22", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "SSH Tailscale"}
 
-  # Jellyfin — LAN + Tailscale only (host network mode).
-  - {rule: allow, port: 8096, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
-  - {rule: allow, port: 8096, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
+  # AdGuard DNS — LAN clients resolve through the box.
+  - {rule: allow, port: "53", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS TCP"}
+  - {rule: allow, port: "53", proto: udp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS UDP"}
 
-  # AdGuard DNS — LAN only (clients on this network resolve via the box).
-  - {rule: allow, port: 53, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS TCP"}
-  - {rule: allow, port: 53, proto: udp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS UDP"}
-  - {rule: allow, port: 3000, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "AdGuard admin UI"}
+  # Caddy → Netdata (basic auth in front of monitoring UI) — LAN + Tailscale.
+  - {rule: allow, port: "19999", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
+  - {rule: allow, port: "19999", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
 
-  # Caddy (Netdata via basic auth) — LAN + Tailscale.
-  - {rule: allow, port: 19999, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
-  - {rule: allow, port: 19999, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
-
-  # Uptime Kuma — Tailscale only (no need to expose status to LAN).
-  - {rule: allow, port: 3001, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Uptime Kuma"}
+  # Jellyfin — LAN + Tailscale (host network mode, listens 0.0.0.0:8096).
+  - {rule: allow, port: "8096", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
+  - {rule: allow, port: "8096", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
 
   # Homepage — LAN + Tailscale.
-  - {rule: allow, port: 3010, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Homepage LAN"}
-  - {rule: allow, port: 3010, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Homepage Tailscale"}
+  - {rule: allow, port: "3000", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Homepage LAN"}
+  - {rule: allow, port: "3000", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Homepage Tailscale"}
 
-  # Portainer — Tailscale only.
-  - {rule: allow, port: 9443, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Portainer Tailscale"}
+  # Uptime Kuma — LAN + Tailscale.
+  - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Uptime Kuma LAN"}
+  - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Uptime Kuma Tailscale"}
 
-  # Duplicati — Tailscale only.
-  - {rule: allow, port: 8200, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Duplicati Tailscale"}
-
-  # Minecraft — open to the internet (port-forwarded from the router).
-  - {rule: allow, port: 25565, proto: tcp, comment: "Minecraft"}
+  # Minecraft Bedrock — Tailscale only.
+  - {rule: allow, port: "19132", proto: udp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock Tailscale"}
 
 # Services to manage. Each entry maps to a directory under both
 # {{ repo_root }}/homelab/compose/<name> (the source of truth) and

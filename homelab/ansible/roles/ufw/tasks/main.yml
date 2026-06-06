@@ -14,12 +14,12 @@
     update_cache: true
     cache_valid_time: 3600
 
-- name: Safety check — ufw_rules must not be empty
+- name: Safety check — ufw_rules must include SSH (port 22)
   ansible.builtin.assert:
     that:
       - ufw_rules is defined
       - ufw_rules | length > 0
-      - ufw_rules | selectattr('port', 'equalto', 22) | list | length > 0
+      - ufw_rules | map(attribute='port') | map('string') | select('equalto', '22') | list | length > 0
     fail_msg: >-
       ufw_rules is empty or missing port 22 (SSH). Refusing to enable UFW —
       this would lock the host out. Define ufw_rules in group_vars/all.yml.
