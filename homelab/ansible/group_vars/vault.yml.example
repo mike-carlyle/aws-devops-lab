@@ -1,0 +1,21 @@
+---
+# Example vault file — copy to vault.yml and encrypt with ansible-vault.
+#
+#   cp group_vars/vault.yml.example group_vars/vault.yml
+#   ansible-vault encrypt group_vars/vault.yml
+#
+# Then edit with:
+#   ansible-vault edit group_vars/vault.yml
+#
+# group_vars/vault.yml is gitignored — never commit secrets.
+
+# Gmail address that sends the notification mail (msmtp authenticates as this).
+vault_msmtp_account_user: "your-gmail-address@gmail.com"
+
+# Gmail App Password (NOT your normal Google password). Generate at
+# https://myaccount.google.com/apppasswords. 16 chars, no spaces.
+vault_msmtp_account_password: "REPLACE_WITH_GMAIL_APP_PASSWORD"
+
+# Where root@localhost mail gets delivered. Usually the same as the account
+# above, but can be a different inbox.
+vault_msmtp_root_recipient: "your-gmail-address@gmail.com"

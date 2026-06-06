@@ -7,6 +7,57 @@ repo_root: "{{ lookup('env', 'HOME') }}/aws-devops-lab"
 # Where each service's runtime directory lives (mounted by docker-compose).
 service_root: "{{ lookup('env', 'HOME') }}"
 
+# Primary admin user on the host. Owns the service runtime directories,
+# member of the docker group, target for root mail aliases.
+admin_user: mike
+
+# Networks treated as trusted for firewall + fail2ban allowlists.
+#   lan_cidr        — local wired/wireless LAN
+#   tailscale_cidr  — Tailscale's CGNAT range (any device on the tailnet)
+lan_cidr: "192.168.1.0/24"
+tailscale_cidr: "100.64.0.0/10"
+
+# SMTP relay used by msmtp for system mail (cron, unattended-upgrades,
+# fail2ban notifications). Credentials come from group_vars/vault.yml.
+msmtp_smtp_host: "smtp.gmail.com"
+msmtp_smtp_port: 587
+
+# UFW ruleset — declarative source of truth. Each entry becomes a rule.
+# Order doesn't matter (ufw resolves overlap by specificity), but list LAN
+# allows before broader rules for readability.
+ufw_rules:
+  # SSH — allow from anywhere (Tailscale-only would lock us out if tailnet flakes).
+  - {rule: allow, port: 22, proto: tcp, comment: "SSH"}
+
+  # Jellyfin — LAN + Tailscale only (host network mode).
+  - {rule: allow, port: 8096, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
+  - {rule: allow, port: 8096, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
+
+  # AdGuard DNS — LAN only (clients on this network resolve via the box).
+  - {rule: allow, port: 53, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS TCP"}
+  - {rule: allow, port: 53, proto: udp, from_ip: "{{ lan_cidr }}", comment: "AdGuard DNS UDP"}
+  - {rule: allow, port: 3000, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "AdGuard admin UI"}
+
+  # Caddy (Netdata via basic auth) — LAN + Tailscale.
+  - {rule: allow, port: 19999, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
+  - {rule: allow, port: 19999, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
+
+  # Uptime Kuma — Tailscale only (no need to expose status to LAN).
+  - {rule: allow, port: 3001, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Uptime Kuma"}
+
+  # Homepage — LAN + Tailscale.
+  - {rule: allow, port: 3010, proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Homepage LAN"}
+  - {rule: allow, port: 3010, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Homepage Tailscale"}
+
+  # Portainer — Tailscale only.
+  - {rule: allow, port: 9443, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Portainer Tailscale"}
+
+  # Duplicati — Tailscale only.
+  - {rule: allow, port: 8200, proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Duplicati Tailscale"}
+
+  # Minecraft — open to the internet (port-forwarded from the router).
+  - {rule: allow, port: 25565, proto: tcp, comment: "Minecraft"}
+
 # Services to manage. Each entry maps to a directory under both
 # {{ repo_root }}/homelab/compose/<name> (the source of truth) and
 # {{ service_root }}/<name> (the runtime location).

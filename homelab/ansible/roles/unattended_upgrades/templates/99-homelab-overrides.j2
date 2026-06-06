@@ -1,0 +1,23 @@
+// Managed by Ansible — do not edit by hand.
+//
+// Homelab-specific overrides for unattended-upgrades. Layered on top of
+// /etc/apt/apt.conf.d/50unattended-upgrades (which is distro-managed).
+
+// Where to mail when upgrades happen or fail. Uses msmtp for delivery.
+Unattended-Upgrade::Mail "{{ admin_user }}";
+
+// Only mail on errors, not for every successful run (otherwise inbox spam).
+Unattended-Upgrade::MailReport "only-on-error";
+
+// Automatically remove dependencies that are no longer needed.
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+
+// Reboot automatically only if a package update requires it AND we're in
+// the quiet window (3 AM). Set to "false" if you'd rather reboot manually.
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+// Touch /var/run/reboot-required if a reboot is needed (default true but
+// spelt out for visibility).
+Unattended-Upgrade::Automatic-Reboot-WithUsers "false";

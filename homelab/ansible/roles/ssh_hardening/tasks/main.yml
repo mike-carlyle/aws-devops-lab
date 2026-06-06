@@ -1,0 +1,22 @@
+---
+# Drop-in SSH hardening: key-only auth, no X11, explicit root policy.
+#
+# The 00- prefix matters: OpenSSH reads /etc/ssh/sshd_config.d/*.conf in
+# alphabetical order and FIRST occurrence wins for each setting. cloud-init
+# ships 50-cloud-init.conf which sets PasswordAuthentication; we need to be
+# read first to override.
+#
+# Safety: the `validate` parameter writes the rendered content to a tempfile
+# and runs `sshd -t -f <tempfile>` BEFORE the file replaces the live one.
+# A failed validation aborts the task with no change. The reload handler
+# only fires if the file actually changed.
+
+- name: Write SSH hardening drop-in (validated before replacing live file)
+  ansible.builtin.template:
+    src: 00-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "sshd -t -f %s"
+  notify: Reload sshd

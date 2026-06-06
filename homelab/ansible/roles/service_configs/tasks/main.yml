@@ -1,0 +1,42 @@
+---
+# Templates the on-disk config for two host-touching containers:
+#   * Caddy — basic-auth reverse proxy in front of Netdata
+#   * fail2ban — sshd jail with LAN + Tailscale allowlist
+#
+# These configs live under {{ service_root }}/<svc>/ on disk (owned by mike)
+# so the running containers pick them up via bind mount. When the templates
+# change, the relevant container is restarted via handler.
+
+- name: Ensure Caddy runtime directory exists
+  ansible.builtin.file:
+    path: "{{ service_root }}/caddy"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0755"
+
+- name: Template Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ service_root }}/caddy/Caddyfile"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+  notify: Restart caddy
+
+- name: Ensure fail2ban jail.d directory exists
+  ansible.builtin.file:
+    path: "{{ service_root }}/fail2ban/config/fail2ban/jail.d"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0755"
+
+- name: Template fail2ban jail.local
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: "{{ service_root }}/fail2ban/config/fail2ban/jail.d/jail.local"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+  notify: Restart fail2ban

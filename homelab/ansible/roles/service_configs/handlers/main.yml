@@ -1,0 +1,11 @@
+---
+# Restart containers via docker CLI rather than community.docker (which would
+# pull the whole module set just to restart a named container).
+
+- name: Restart caddy
+  ansible.builtin.command: docker restart caddy
+  changed_when: true
+
+- name: Restart fail2ban
+  ansible.builtin.command: docker restart fail2ban
+  changed_when: true

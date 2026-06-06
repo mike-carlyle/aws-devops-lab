@@ -1,0 +1,68 @@
+---
+# Install msmtp as the system sendmail provider so unattended-upgrades,
+# cron, and fail2ban can deliver mail via Gmail (using an App Password).
+#
+# Skipped if the vault isn't configured (placeholder still in place) so that
+# --check runs work end-to-end without a real vault. Subsequent roles
+# (ssh_hardening, ufw) still run because we use a block-when guard rather
+# than meta: end_play (which would terminate the entire play).
+
+- name: Detect whether msmtp vault is configured
+  ansible.builtin.set_fact:
+    msmtp_vault_ready: >-
+      {{
+        vault_msmtp_account_password is defined
+        and vault_msmtp_account_password != 'REPLACE_WITH_GMAIL_APP_PASSWORD'
+      }}
+
+- name: Report msmtp role skipped (vault not configured)
+  ansible.builtin.debug:
+    msg: >-
+      msmtp role skipped — group_vars/vault.yml not populated yet.
+      Create it from vault.yml.example, encrypt with ansible-vault, then re-run.
+  when: not msmtp_vault_ready
+
+- name: Configure msmtp
+  when: msmtp_vault_ready
+  block:
+    - name: Install msmtp + sendmail compatibility shim + bsd-mailx
+      ansible.builtin.apt:
+        name:
+          - msmtp
+          - msmtp-mta
+          - bsd-mailx
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Write /etc/msmtprc
+      ansible.builtin.template:
+        src: msmtprc.j2
+        dest: /etc/msmtprc
+        owner: root
+        group: root
+        mode: "0600"
+        # 0600 because this file contains the Gmail App Password.
+      no_log: true   # don't leak the rendered content into the log
+
+    - name: Ensure /etc/aliases routes root mail to admin
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: "^root:"
+        line: "root: {{ admin_user }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Rebuild aliases db
+
+    - name: Ensure /etc/aliases routes admin mail to Gmail
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: "^{{ admin_user }}:"
+        line: "{{ admin_user }}: {{ vault_msmtp_root_recipient }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Rebuild aliases db

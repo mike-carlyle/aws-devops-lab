@@ -1,0 +1,15 @@
+# Managed by Ansible — do not edit by hand.
+# Overrides /etc/ssh/sshd_config defaults. Loaded BEFORE 50-cloud-init.conf
+# (first-match-wins) so the values here are the effective ones.
+
+# Require SSH key authentication. Disables password fallback entirely.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+
+# Disable X11 forwarding — unused on this headless server.
+X11Forwarding no
+
+# Explicit root login policy. Default is "prohibit-password" which is fine,
+# but spelling it out makes intent clear.
+PermitRootLogin prohibit-password

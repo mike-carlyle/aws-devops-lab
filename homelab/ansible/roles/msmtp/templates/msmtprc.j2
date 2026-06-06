@@ -1,0 +1,19 @@
+# Managed by Ansible — do not edit by hand.
+# Secrets come from group_vars/vault.yml (ansible-vault encrypted).
+
+defaults
+auth          on
+tls           on
+tls_starttls  on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+logfile       /var/log/msmtp.log
+
+account        gmail
+host           {{ msmtp_smtp_host }}
+port           {{ msmtp_smtp_port }}
+from           {{ vault_msmtp_account_user }}
+user           {{ vault_msmtp_account_user }}
+password       {{ vault_msmtp_account_password }}
+
+# Default account used when invoked without -a.
+account default : gmail

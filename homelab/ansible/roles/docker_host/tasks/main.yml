@@ -1,0 +1,54 @@
+---
+# Verify docker engine + compose plugin are present and the admin user can
+# talk to the daemon. Does NOT install docker from scratch — that's a one-off
+# bootstrap step. Re-running this role on a working box is a no-op.
+#
+# To install docker fresh on a new host, run upstream's get-docker.sh first:
+#   curl -fsSL https://get.docker.com | sh
+#   sudo usermod -aG docker {{ admin_user }}
+
+- name: Check docker engine is installed
+  ansible.builtin.command: docker --version
+  register: docker_version_check
+  changed_when: false
+  failed_when: docker_version_check.rc != 0
+
+- name: Check docker compose plugin is installed
+  ansible.builtin.command: docker compose version
+  register: compose_version_check
+  changed_when: false
+  failed_when: compose_version_check.rc != 0
+
+- name: Ensure docker service is enabled and running
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Ensure admin user is in docker group
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: docker
+    append: true
+
+- name: Set system-wide docker daemon log limits (rotate before disks fill)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+  notify: Reload docker daemon
+
+- name: Report installed versions
+  ansible.builtin.debug:
+    msg:
+      - "Docker engine: {{ docker_version_check.stdout }}"
+      - "Compose plugin: {{ compose_version_check.stdout }}"

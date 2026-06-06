@@ -1,0 +1,6 @@
+// Managed by Ansible — do not edit by hand.
+// Run apt-get update every day and process unattended upgrades every day.
+
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";

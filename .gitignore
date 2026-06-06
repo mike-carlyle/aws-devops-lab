@@ -3,3 +3,8 @@
 .DS_Store
 secrets/
 credentials
+
+# Ansible — encrypted vault stays local, only vault.yml.example is committed.
+homelab/ansible/group_vars/vault.yml
+.ansible-vault-pass
+*.retry

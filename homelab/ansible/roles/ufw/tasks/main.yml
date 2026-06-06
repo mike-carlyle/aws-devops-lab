@@ -1,0 +1,50 @@
+---
+# Declarative UFW: default deny incoming, allow outgoing, then a per-port
+# allow list driven from group_vars/all.yml's `ufw_rules` variable.
+#
+# CRITICAL: a wrong rule here can lock you out via SSH. Always run
+# `bash run-host.sh --tags ufw --check --diff` first and read the diff
+# before applying. The role rejects an empty ufw_rules list as a safety
+# check (otherwise it would default-deny SSH and brick remote access).
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Safety check — ufw_rules must not be empty
+  ansible.builtin.assert:
+    that:
+      - ufw_rules is defined
+      - ufw_rules | length > 0
+      - ufw_rules | selectattr('port', 'equalto', 22) | list | length > 0
+    fail_msg: >-
+      ufw_rules is empty or missing port 22 (SSH). Refusing to enable UFW —
+      this would lock the host out. Define ufw_rules in group_vars/all.yml.
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - {direction: incoming, policy: deny}
+    - {direction: outgoing, policy: allow}
+    - {direction: routed, policy: deny}
+
+- name: Apply per-service allow rules
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port | string }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from_ip | default('any') }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_rules }}"
+  loop_control:
+    label: "{{ item.rule }} {{ item.proto }}/{{ item.port }} from {{ item.from_ip | default('any') }} ({{ item.comment | default('') }})"
+
+- name: Enable UFW and start the service
+  community.general.ufw:
+    state: enabled
+    logging: "low"

@@ -1,0 +1,61 @@
+---
+# Phase 2 — host-level provisioning.
+#
+# Codifies everything outside docker compose: package installs, system service
+# config, firewall rules, SSH hardening, and the on-disk config for the two
+# host-touching containers (Caddy + fail2ban).
+#
+# Runs locally on the target host (Ubuntu 24.04). Needs sudo. Install once:
+#   sudo apt install -y ansible-core
+#   ansible-galaxy collection install -r requirements.yml
+#
+# Run via the wrapper:
+#   bash run-host.sh                       # full provision (will prompt for sudo)
+#   bash run-host.sh --check --diff        # dry-run, show what would change
+#   bash run-host.sh --tags ssh            # one role only
+#   bash run-host.sh --tags ssh,ufw        # subset
+#
+# Roles are tagged so you can run them individually. Default play runs all of
+# them in safe order (least-risky first).
+
+- name: Provision homelab host
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - group_vars/all.yml
+    # Vault file is optional in --check mode but required for full run.
+    # Create with: ansible-vault create group_vars/vault.yml
+    - "{{ vault_file | default('group_vars/vault.yml') }}"
+
+  pre_tasks:
+    - name: Sanity check — target is Ubuntu
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_major_version | int >= 22
+        fail_msg: >-
+          This playbook targets Ubuntu 22.04+. Detected
+          {{ ansible_distribution }} {{ ansible_distribution_version }}.
+
+  roles:
+    # Order matters: safe / idempotent first, risky stuff last so a failure
+    # mid-way leaves the box in a known-good state rather than half-firewalled.
+    - role: unattended_upgrades
+      tags: [unattended-upgrades, apt, safe]
+
+    - role: docker_host
+      tags: [docker, safe]
+
+    - role: msmtp
+      tags: [msmtp, mail]
+
+    - role: service_configs
+      tags: [service-configs, caddy, fail2ban]
+
+    - role: ssh_hardening
+      tags: [ssh, hardening, risky]
+
+    - role: ufw
+      tags: [ufw, firewall, risky]
