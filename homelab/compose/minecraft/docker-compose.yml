@@ -1,6 +1,9 @@
 services:
   Minecraft:
     image: itzg/minecraft-bedrock-server
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 512
     container_name: Minecraft
     network_mode: host
     volumes:

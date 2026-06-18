@@ -1,8 +1,13 @@
 services:
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
     container_name: homepage
     restart: unless-stopped
+    # Run tini as PID 1 to reap zombie children left by healthcheck (wget) processes
+    init: true
     ports:
       - "3000:3000"
     # Run as root inside the container so it can read /var/run/docker.sock.
@@ -15,7 +20,7 @@ services:
     environment:
       - TZ=Europe/London
       # CSRF protection — must include every hostname/IP you'll access Homepage from
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.10:3000,mchomeserver:3000,100.68.102.75:3000,localhost:3000
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.10:3000,mchomeserver:3000,100.104.64.28:3000,localhost:3000
       # Service API credentials — values come from .env (gitignored, mode 0600)
       - HOMEPAGE_VAR_ADGUARD_USERNAME=${HOMEPAGE_VAR_ADGUARD_USERNAME}
       - HOMEPAGE_VAR_ADGUARD_PASSWORD=${HOMEPAGE_VAR_ADGUARD_PASSWORD}

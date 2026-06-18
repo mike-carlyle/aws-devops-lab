@@ -1,6 +1,9 @@
 services:
   fail2ban:
     image: lscr.io/linuxserver/fail2ban:latest
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 256
     container_name: fail2ban
     network_mode: host
     cap_add:

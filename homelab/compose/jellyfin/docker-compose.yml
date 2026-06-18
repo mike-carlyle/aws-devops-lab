@@ -1,8 +1,9 @@
-version: "3.8"
-
 services:
   jellyfin:
     image: jellyfin/jellyfin
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 512
     container_name: jellyfin
     network_mode: "host"
     volumes:

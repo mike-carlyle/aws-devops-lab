@@ -1,8 +1,9 @@
-version: '3.8'
-
 services:
   netdata:
     image: netdata/netdata:stable
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 1024
     container_name: netdata
     hostname: netdata
     ports:
@@ -22,6 +23,8 @@ services:
       - netdatalib:/var/lib/netdata
       - netdatacache:/var/cache/netdata
     restart: unless-stopped
+    # Run tini as PID 1 to reap zombie children (healthcheck + spawn-server processes)
+    init: true
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
