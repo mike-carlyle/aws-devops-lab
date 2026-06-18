@@ -1,39 +1,49 @@
 ---
-# Verify docker engine + compose plugin are present and the admin user can
-# talk to the daemon. Does NOT install docker from scratch — that's a one-off
-# bootstrap step. Re-running this role on a working box is a no-op.
+# Install Docker Engine (Docker CE) from Docker's official apt repository plus
+# the Compose v2 plugin, and make the admin user able to talk to the daemon.
+# Idempotent: re-running on a working box changes nothing.
 #
-# To install docker fresh on a new host, run upstream's get-docker.sh first:
-#   curl -fsSL https://get.docker.com | sh
-#   sudo usermod -aG docker {{ admin_user }}
+# Uses the upstream docker-ce packages (not Ubuntu's docker.io) so the engine
+# and the `docker compose` plugin track Docker's own releases.
 
-- name: Check docker engine is installed
-  ansible.builtin.command: docker --version
-  register: docker_version_check
-  changed_when: false
-  failed_when: docker_version_check.rc != 0
+- name: Install prerequisites for the Docker apt repository
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
 
-# Docker Compose v2 ships in two forms:
-#   * plugin       — /usr/libexec/docker/cli-plugins/docker-compose, invoked as `docker compose`
-#   * standalone   — /usr/local/bin/docker-compose, invoked as `docker-compose`
-# Either is fine for running services on the host (Phase 1 uses the
-# containerised plugin via cytopia/ansible). Accept whichever is present.
-- name: Check docker compose v2 is installed (plugin OR standalone)
-  ansible.builtin.shell: |
-    if docker compose version >/dev/null 2>&1; then
-      docker compose version
-      echo "form=plugin"
-    elif command -v docker-compose >/dev/null 2>&1; then
-      docker-compose --version
-      echo "form=standalone"
-    else
-      echo "neither 'docker compose' (plugin) nor 'docker-compose' (standalone) found" >&2
-      exit 1
-    fi
-  args:
-    executable: /bin/bash
-  register: compose_version_check
-  changed_when: false
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add Docker's official GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add the Docker CE apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: Install Docker CE engine, CLI, containerd, buildx and the compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
 
 - name: Ensure docker service is enabled and running
   ansible.builtin.systemd:
@@ -41,7 +51,7 @@
     enabled: true
     state: started
 
-- name: Ensure admin user is in docker group
+- name: Ensure admin user is in the docker group
   ansible.builtin.user:
     name: "{{ admin_user }}"
     groups: docker
@@ -63,8 +73,9 @@
       }
   notify: Reload docker daemon
 
-- name: Report installed versions
-  ansible.builtin.debug:
-    msg:
-      - "Docker engine: {{ docker_version_check.stdout }}"
-      - "Docker compose: {{ compose_version_check.stdout }}"
+- name: Confirm docker engine + compose plugin respond
+  ansible.builtin.command: "{{ item }}"
+  changed_when: false
+  loop:
+    - docker --version
+    - docker compose version

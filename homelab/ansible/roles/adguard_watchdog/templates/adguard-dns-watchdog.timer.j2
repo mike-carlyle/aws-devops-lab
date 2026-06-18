@@ -1,0 +1,10 @@
+# Managed by Ansible — do not edit by hand.
+[Unit]
+Description=Run AdGuard DNS watchdog every 30s
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=30
+
+[Install]
+WantedBy=timers.target

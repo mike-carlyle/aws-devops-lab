@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Managed by Ansible — do not edit by hand.
+#
+# Restart AdGuard only if it stops REPLYING on 127.0.0.1:53.
+# Any reply (even NXDOMAIN/SERVFAIL) counts as alive, so an upstream outage
+# won't false-trigger a restart. Acts only on two consecutive misses.
+state=/run/adguard-dns-watchdog.fail
+if dig +tries=1 +timeout=2 @127.0.0.1 health.check.adguard >/dev/null 2>&1; then
+  rm -f "$state"
+else
+  if [ -f "$state" ]; then
+    logger -t adguard-watchdog "AdGuard silent on :53 twice — restarting container"
+    docker restart {{ adguard_container }}
+    rm -f "$state"
+  else
+    touch "$state"   # one strike; act on the next consecutive miss
+  fi
+fi

@@ -42,6 +42,9 @@
   roles:
     # Order matters: safe / idempotent first, risky stuff last so a failure
     # mid-way leaves the box in a known-good state rather than half-firewalled.
+    - role: base_system
+      tags: [base, kernel, packages, safe]
+
     - role: unattended_upgrades
       tags: [unattended-upgrades, apt, safe]
 
@@ -53,6 +56,9 @@
 
     - role: service_configs
       tags: [service-configs, caddy, fail2ban]
+
+    - role: adguard_watchdog
+      tags: [adguard, watchdog, dns]
 
     - role: ssh_hardening
       tags: [ssh, hardening, risky]

@@ -1,0 +1,3 @@
+---
+# Name of the AdGuard Home container the watchdog restarts.
+adguard_container: adguardhome
