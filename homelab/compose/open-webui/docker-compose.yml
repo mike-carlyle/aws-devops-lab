@@ -1,0 +1,32 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 512
+    container_name: open-webui
+    restart: unless-stopped
+    # Chat UI in front of Ollama. Reaches the API over the shared ollama_default
+    # network as http://ollama:11434 (no auth needed internally). Open WebUI has
+    # its OWN login (first user to register becomes admin), so it is safe to
+    # publish on the LAN + tailnet directly — no Caddy basic-auth needed.
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - TZ=Europe/London
+      - WEBUI_AUTH=true
+    ports:
+      # 0.0.0.0:3002 — LAN reachable via the UFW allow rule; tailnet reachable
+      # via Tailscale (bypasses UFW), same pattern as the other web UIs.
+      - "3002:8080"
+    volumes:
+      - ./data:/app/backend/data   # accounts, chat history, settings persist here
+    networks:
+      - default
+      - ollama-net
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  ollama-net:
+    external: true
+    name: ollama_default

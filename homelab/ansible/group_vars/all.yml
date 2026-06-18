@@ -14,8 +14,11 @@ admin_user: mike
 # Networks treated as trusted for firewall + fail2ban allowlists.
 #   lan_cidr        — local wired/wireless LAN
 #   tailscale_cidr  — Tailscale's CGNAT range (any device on the tailnet)
+#   docker_cidr     — Docker bridge subnets (lets containers, e.g. the Homepage
+#                     widget, reach host-networked services like Jellyfin via UFW)
 lan_cidr: "192.168.1.0/24"
 tailscale_cidr: "100.64.0.0/10"
+docker_cidr: "172.16.0.0/12"
 
 # SMTP relay used by msmtp for system mail (cron, unattended-upgrades,
 # fail2ban notifications). Credentials come from group_vars/vault.yml.
@@ -55,10 +58,17 @@ ufw_rules:
   - {rule: allow, port: "19999", from_ip: "{{ lan_cidr }}", comment: "Caddy/Netdata LAN"}
   - {rule: allow, port: "19999", from_ip: "{{ tailscale_cidr }}", comment: "Caddy/Netdata Tailscale"}
 
+  # Caddy → Ollama (basic auth in front of the local LLM API) — LAN only.
+  # Tailnet access is via `tailscale serve` (bypasses UFW), so no Tailscale rule here.
+  - {rule: allow, port: "11434", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Caddy/Ollama LAN"}
+
   # Jellyfin — LAN + Tailscale (host network mode, listens 0.0.0.0:8096).
   # No explicit proto: matches existing imprecise rule (see note above).
   - {rule: allow, port: "8096", from_ip: "{{ lan_cidr }}", comment: "Jellyfin LAN"}
   - {rule: allow, port: "8096", from_ip: "{{ tailscale_cidr }}", comment: "Jellyfin Tailscale"}
+  # Homepage widget runs in a container; allow the Docker bridges to reach the
+  # host-networked Jellyfin API (otherwise UFW drops it → widget ETIMEDOUT).
+  - {rule: allow, port: "8096", proto: tcp, from_ip: "{{ docker_cidr }}", comment: "Jellyfin from Docker (Homepage widget)"}
 
   # Homepage — LAN + Tailscale.
   - {rule: allow, port: "3000", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Homepage LAN"}
@@ -67,6 +77,10 @@ ufw_rules:
   # Uptime Kuma — LAN + Tailscale.
   - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Uptime Kuma LAN"}
   - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Uptime Kuma Tailscale"}
+
+  # Open WebUI — chat UI for Ollama (has its own login) — LAN + Tailscale.
+  - {rule: allow, port: "3002", proto: tcp, from_ip: "{{ lan_cidr }}", comment: "Open WebUI LAN"}
+  - {rule: allow, port: "3002", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Open WebUI Tailscale"}
 
   # Minecraft Bedrock — Tailscale only.
   - {rule: allow, port: "19132", proto: udp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock Tailscale"}
@@ -94,6 +108,10 @@ services:
   - name: minecraft
     start: true
   - name: netdata
+    start: true
+  - name: ollama
+    start: true
+  - name: open-webui
     start: true
   - name: portainer
     start: true

@@ -6,7 +6,7 @@
     - Jellyfin:
         icon: jellyfin.svg
         href: http://192.168.1.10:8096
-        description: Movies, TV and audio
+        description: Movies, TV & music — McFlix
         server: my-docker
         container: jellyfin
         widget:
@@ -19,11 +19,33 @@
 
     - Minecraft:
         icon: minecraft.svg
-        description: Bedrock server (Tailscale only, UDP 19132)
+        description: Bedrock server — Tailscale only (UDP 19132)
         server: my-docker
         container: Minecraft
 
-- Network & DNS:
+- AI:
+    - Open WebUI:
+        icon: open-webui.svg
+        href: http://192.168.1.10:3002
+        description: Chat UI for the local models (own login)
+        server: my-docker
+        container: open-webui
+
+    - Ollama:
+        icon: ollama.svg
+        href: http://192.168.1.10:3002
+        description: LLM backend — qwen2.5 7b + 14b (CPU)
+        server: my-docker
+        container: ollama
+        widget:
+          type: customapi
+          url: http://ollama:11434/api/version
+          refreshInterval: 60000
+          mappings:
+            - field: version
+              label: Version
+
+- Network:
     - AdGuard Home:
         icon: adguard-home.svg
         href: http://192.168.1.10/
@@ -39,25 +61,36 @@
     - Tailscale:
         icon: tailscale.svg
         href: https://login.tailscale.com/admin/machines
-        description: Mesh VPN — Tailnet Lock enabled (Tailnet Lock signing on this node)
+        description: Mesh VPN — Tailnet Lock enabled
 
     - Caddy:
         icon: caddy.svg
-        description: Reverse proxy with basic-auth (fronts Netdata)
+        description: Reverse proxy — fronts Netdata + Ollama
         server: my-docker
         container: caddy
 
-- Backups & Management:
-    - Duplicati:
-        icon: duplicati.svg
-        href: http://192.168.1.10:8200
-        description: Encrypted daily backups to OneDrive
+- Monitoring:
+    - Netdata:
+        icon: netdata.svg
+        href: http://192.168.1.10:19999
+        description: Real-time system & container metrics (behind Caddy auth)
         server: my-docker
-        container: duplicati
-        # No built-in Duplicati widget in Homepage. A customapi widget could
-        # query Duplicati's REST API for last backup time / status — left as a
-        # future enhancement.
+        container: netdata
 
+    - Uptime Kuma:
+        icon: uptime-kuma.svg
+        href: http://192.168.1.10:3001
+        description: Service uptime monitoring with email alerts
+        server: my-docker
+        container: uptime-kuma
+
+    - fail2ban:
+        icon: fail2ban.svg
+        description: SSH brute-force protection (LAN + Tailscale allowlist)
+        server: my-docker
+        container: fail2ban
+
+- Management:
     - Portainer:
         icon: portainer.svg
         href: http://192.168.1.10:9000
@@ -70,13 +103,6 @@
           env: 1
           key: "{{HOMEPAGE_VAR_PORTAINER_TOKEN}}"
 
-    - Netdata:
-        icon: netdata.svg
-        href: http://192.168.1.10:19999
-        description: System and container monitoring (behind Caddy auth)
-        server: my-docker
-        container: netdata
-
     - Watchtower:
         icon: watchtower.svg
         description: Automated container image updates (hourly)
@@ -87,21 +113,15 @@
           url: http://watchtower:8080
           key: "{{HOMEPAGE_VAR_WATCHTOWER_TOKEN}}"
 
-    - Uptime Kuma:
-        icon: uptime-kuma.svg
-        href: http://192.168.1.10:3001
-        description: Service uptime monitoring with email alerts
+    - Duplicati:
+        icon: duplicati.svg
+        href: http://192.168.1.10:8200
+        description: Encrypted daily backups to OneDrive
         server: my-docker
-        container: uptime-kuma
-
-    - fail2ban:
-        icon: fail2ban.svg
-        description: SSH brute-force protection
-        server: my-docker
-        container: fail2ban
+        container: duplicati
 
     - Socket Proxy:
         icon: docker.svg
-        description: Hardened Docker API proxy in front of Watchtower
+        description: Hardened Docker API proxy for Watchtower
         server: my-docker
         container: socket-proxy

@@ -10,3 +10,29 @@
 	}
 	reverse_proxy localhost:19998
 }
+
+# Ollama API — loopback only (127.0.0.1:11435); exposed to the tailnet via
+# `tailscale serve --http=11434`. Ollama itself stays bound to 127.0.0.1:11434.
+# No basic_auth: access is gated by the tailnet (Tailnet Lock is on) so the
+# `ollama` CLI / apps work without auth headers. Add basic_auth here if exposing wider.
+:11435 {
+	bind 127.0.0.1
+	reverse_proxy localhost:11434 {
+		header_up Host localhost:11434
+	}
+}
+
+# Ollama API on the LAN — password-gated (mike + BASIC_AUTH_HASH), bound to the
+# LAN IP only. The LAN is not encrypted/identity-gated like the tailnet, and
+# Ollama has no auth of its own, so this endpoint requires basic auth.
+# NOTE: the `ollama` CLI can't send basic-auth easily — use curl/apps here, or
+# the tailnet endpoint (no auth) for CLI use. UFW allows 11434 only from the LAN.
+:11434 {
+	bind 192.168.1.10
+	basic_auth {
+		mike {$BASIC_AUTH_HASH}
+	}
+	reverse_proxy localhost:11434 {
+		header_up Host localhost:11434
+	}
+}

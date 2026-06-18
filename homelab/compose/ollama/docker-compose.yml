@@ -1,0 +1,17 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    mem_limit: 12g         # fits up to a 14B Q4 model w/ context; leaves DNS + other stacks ~15g
+    memswap_limit: 12g     # no extra swap beyond the RAM cap (matches other stacks)
+    cpus: "12"             # cap at 12 of 16 threads so AdGuard/DNS always keeps CPU under load
+    pids_limit: 512
+    container_name: ollama
+    restart: unless-stopped
+    # Bind to loopback only: this box is on the LAN + Tailscale and Ollama has
+    # NO auth. Expose deliberately later (LAN IP, or front it with the Caddy stack).
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ./data:/root/.ollama   # models persist here; migrates with the rsync of /home/mike
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

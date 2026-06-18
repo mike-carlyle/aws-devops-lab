@@ -5,26 +5,35 @@ title: mchomeserver
 theme: dark
 color: slate
 
-# Layout: how categories are arranged on the page
+# Layout: groups arranged as rows, column counts tuned to each group's size.
 layout:
   Media:
     style: row
-    columns: 3
-  Network & DNS:
+    columns: 2
+  AI:
+    style: row
+    columns: 2
+  Network:
     style: row
     columns: 3
-  Backups & Management:
+  Monitoring:
     style: row
     columns: 3
-  Games:
+  Management:
     style: row
-    columns: 3
+    columns: 4
 
-# Header style: clean and minimal
-headerStyle: clean
+# Header style: boxed info widgets for a modern dashboard look
+headerStyle: boxedWidgets
 
-# Use full container width
-fullWidth: false
+# Use the full browser width, and keep cards within a row the same height
+fullWidth: true
+useEqualHeights: true
+
+# Modern touches: frosted-glass blur on cards (sits over the custom.css gradient
+# backdrop) and hide the Homepage version string in the footer
+cardBlur: sm
+hideVersion: true
 
 # Background colour
 background:
@@ -33,5 +42,5 @@ background:
   brightness: 50
   opacity: 50
 
-# Statistics block in the header
+# Status indicator style for docker-integrated services
 statusStyle: dot

@@ -1,0 +1,11 @@
+/* mchomeserver — modern dark glass theme.
+   Auto-loaded by Homepage from the config dir. Best-effort styling applied
+   without a live preview — tweak the colours/blur to taste.
+   Pairs with `cardBlur: sm` in settings.yaml for a frosted-glass card look. */
+
+/* Softer slate -> indigo gradient backdrop behind the frosted cards.
+   Lighter than near-black; nudge these hex values up/down to taste. */
+body {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 60%, #3b3566 100%) no-repeat fixed !important;
+  background-size: cover !important;
+}
