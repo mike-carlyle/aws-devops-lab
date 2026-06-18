@@ -1,8 +1,10 @@
-version: "3.8"
-
 services:
   gluetun:
     image: qmcgaw/gluetun:v3.41.0
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 128
+    cpus: 1.0
     container_name: gluetun
     cap_add:
       - NET_ADMIN
@@ -26,6 +28,10 @@ services:
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 512
+    cpus: 2.0
     container_name: qbittorrent
     network_mode: "service:gluetun"   # fully inside VPN
     environment:

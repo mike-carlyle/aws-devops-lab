@@ -4,6 +4,9 @@ services:
   # instead of giving Watchtower full RW access to /var/run/docker.sock.
   socket-proxy:
     image: tecnativa/docker-socket-proxy:latest
+    mem_limit: 128m
+    memswap_limit: 128m
+    pids_limit: 64
     container_name: socket-proxy
     restart: unless-stopped
     environment:
@@ -28,6 +31,9 @@ services:
 
   watchtower:
     image: nickfedor/watchtower:1.17
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 128
     container_name: watchtower
     restart: unless-stopped
     depends_on:
@@ -40,8 +46,9 @@ services:
       --label-enable
     environment:
       - DOCKER_HOST=tcp://socket-proxy:2375
-      # HTTP metrics endpoint so Homepage can display live scan/update counts.
-      # Reachable only on the internal docker-proxy network — no host port exposure.
+      # Enable Watchtower's HTTP metrics endpoint so Homepage can show
+      # live scan/update counts. Reachable internally on docker-proxy
+      # network only — no host port exposure. Token is in .env.
       - WATCHTOWER_HTTP_API_METRICS=true
       - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_HTTP_API_TOKEN}
       - WATCHTOWER_NOTIFICATIONS=email
