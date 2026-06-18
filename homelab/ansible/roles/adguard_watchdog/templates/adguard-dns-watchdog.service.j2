@@ -1,0 +1,8 @@
+# Managed by Ansible — do not edit by hand.
+[Unit]
+Description=Restart AdGuard if it stops answering DNS
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/adguard-dns-watchdog.sh

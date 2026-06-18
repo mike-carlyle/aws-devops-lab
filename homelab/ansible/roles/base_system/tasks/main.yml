@@ -1,0 +1,19 @@
+---
+# Base host packages: a recent (HWE) kernel for current hardware support, plus
+# sensor / SMART monitoring tooling. Safe and idempotent.
+#
+# NOTE: a newer kernel only becomes active after a reboot; this role does not
+# reboot the host — schedule that separately after a provisioning run.
+
+- name: Install the HWE kernel meta-package (newer kernel for current hardware)
+  ansible.builtin.apt:
+    name: linux-generic-hwe-24.04
+    state: present
+    update_cache: true
+
+- name: Install hardware-health tooling (sensors + SMART)
+  ansible.builtin.apt:
+    name:
+      - lm-sensors
+      - smartmontools
+    state: present
