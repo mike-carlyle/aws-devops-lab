@@ -35,6 +35,7 @@ services:
     networks:
       - default
       - watchtower-proxy
+      - ollama-net
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
@@ -42,3 +43,6 @@ networks:
   watchtower-proxy:
     external: true
     name: watchtower_docker-proxy
+  ollama-net:
+    external: true
+    name: ollama_default
