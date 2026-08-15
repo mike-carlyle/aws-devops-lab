@@ -270,7 +270,7 @@ A dry run with `bash run.sh --check --diff` validates the playbook without touch
 
 Homepage, Open WebUI, Duplicati and Portainer had all been published on `0.0.0.0`, reachable from anywhere on the LAN even though the trust model for the rest of the stack assumed Tailscale's own iptables rules — which bypass UFW entirely — were the only path in for services like these. Duplicati in particular can read `/etc` and all of `/home/mike`, and Portainer holds a full read-write Docker socket, so both were more exposed on the LAN than intended. A review on 2026-07-06 rebound all four to `127.0.0.1` plus the box's Tailscale address, so nothing is listening on the LAN-facing interface at all any more. Portainer's plaintext `:9000` HTTP port was retired at the same time in favour of its built-in HTTPS listener on `:9443`.
 
-The Tailscale address was hardcoded into all four compose files at first (`REDACTED_TAILNET_IP`). See "Automating the Tailscale IP across tailnet-bound services" further down for why that didn't stay hardcoded for long.
+The Tailscale address was hardcoded into all four compose files at first. See "Automating the Tailscale IP across tailnet-bound services" further down for why that didn't stay hardcoded for long.
 
 ### Replacing Homepage's Docker socket access with a scoped proxy
 
