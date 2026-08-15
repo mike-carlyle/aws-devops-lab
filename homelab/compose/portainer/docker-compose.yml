@@ -7,7 +7,12 @@ services:
     container_name: portainer
     command: -H unix:///var/run/docker.sock
     ports:
-      - "9000:9000"
+      # Hardened 2026-07-06: was "9000:9000" (plaintext HTTP on all interfaces / LAN-reachable).
+      # Portainer serves HTTPS on 9443 by default; publish it to tailnet + loopback only.
+      # 2026-08-14: tailnet address is no longer hardcoded -- TAILNET_IP is kept
+      # current in .env by ~/.local/bin/sync-tailnet-ip.sh (cron: @reboot, */15).
+      - "${TAILNET_IP}:9443:9443"   # reach via Tailscale: https://$TAILNET_IP:9443
+      - "127.0.0.1:9443:9443"       # local admin over SSH tunnel
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/data
