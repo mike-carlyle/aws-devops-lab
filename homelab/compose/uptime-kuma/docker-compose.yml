@@ -1,6 +1,8 @@
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:1
+    # Upgraded v1 -> v2 on 2026-07-06 (one-way DB migration on first boot).
+    # Full pre-upgrade backup: kuma-data-backup-v1.23.17-*.tar.gz in this dir.
+    image: louislam/uptime-kuma:2
     mem_limit: 512m
     memswap_limit: 512m
     pids_limit: 256
