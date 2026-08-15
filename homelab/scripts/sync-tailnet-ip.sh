@@ -14,7 +14,7 @@
 # Background: homepage, open-webui, duplicati and portainer publish their ports
 # to the Tailscale address as well as loopback, and must NOT be published on the
 # LAN (duplicati reads /etc and /home/mike; portainer holds the raw docker
-# socket). That address used to be hardcoded as REDACTED_TAILNET_IP in all four
+# socket). That address used to be hardcoded in all four
 # docker-compose.yml files. If the tailnet address ever changed, every one of
 # them would fail to bind and stay down.
 #
