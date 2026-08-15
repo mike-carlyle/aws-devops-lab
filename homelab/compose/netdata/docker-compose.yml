@@ -8,10 +8,13 @@ services:
     hostname: netdata
     ports:
       - 127.0.0.1:19998:19999
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - apparmor=unconfined
+    # Hardened 2026-07-06: dropped `apparmor=unconfined` (netdata runs fine under the
+    # docker-default AppArmor profile) and the SYS_PTRACE capability, to shrink the
+    # post-compromise blast radius. The docker.sock stays read-only (below).
+    # If per-process memory charts (apps.plugin) look incomplete, re-add ONLY the
+    # capability by uncommenting the two lines below (leave apparmor at default).
+    # cap_add:
+    #   - SYS_PTRACE
     environment:
       - NETDATA_HOST_PREFIX=/host
     volumes:
