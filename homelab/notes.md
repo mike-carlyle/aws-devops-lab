@@ -266,6 +266,50 @@ A dry run with `bash run.sh --check --diff` validates the playbook without touch
 
 -----
 
+### Binding management UIs to loopback and Tailscale only
+
+Homepage, Open WebUI, Duplicati and Portainer had all been published on `0.0.0.0`, reachable from anywhere on the LAN even though the trust model for the rest of the stack assumed Tailscale's own iptables rules — which bypass UFW entirely — were the only path in for services like these. Duplicati in particular can read `/etc` and all of `/home/mike`, and Portainer holds a full read-write Docker socket, so both were more exposed on the LAN than intended. A review on 2026-07-06 rebound all four to `127.0.0.1` plus the box's Tailscale address, so nothing is listening on the LAN-facing interface at all any more. Portainer's plaintext `:9000` HTTP port was retired at the same time in favour of its built-in HTTPS listener on `:9443`.
+
+The Tailscale address was hardcoded into all four compose files at first (`REDACTED_TAILNET_IP`). See "Automating the Tailscale IP across tailnet-bound services" further down for why that didn't stay hardcoded for long.
+
+### Replacing Homepage's Docker socket access with a scoped proxy
+
+Homepage's docker widget needs to read container status, and the straightforward way to give it that is mounting `/var/run/docker.sock` read-only into the container. That was the original setup, and it worked, but a compromise of Homepage — a dashboard pulling in a fair amount of third-party widget code — would then have had a full list/inspect view of the host's entire Docker daemon. Watchtower already had this exact problem solved with a `tecnativa/docker-socket-proxy` sidecar scoped to only the endpoints it needs, so the same pattern was applied to Homepage: a second, independently-scoped `homepage-dockerproxy` container permitting only `CONTAINERS`, `INFO`, `VERSION` and `PING`, with exec, volumes, secrets, images and networks all denied. Homepage now reaches it at `http://homepage-dockerproxy:2375` instead of the raw socket, and the socket mount was removed from Homepage's own compose entry entirely.
+
+While making that change, Homepage was also switched to run as a non-root user (`1000:1000`) rather than root-inside-the-container. Dropping the socket mount removed the only reason it needed root in the first place, since `./config` is already owned by `mike` (uid 1000).
+
+### Dropping Netdata's SYS_PTRACE capability and unconfined AppArmor profile
+
+Netdata's compose file carried `cap_add: [SYS_PTRACE]` and `security_opt: [apparmor=unconfined]`, both there to let its `apps.plugin` component read per-process resource usage from `/proc` for processes outside its own container namespace. In practice Netdata's per-process charts kept working fine under the default `docker-default` AppArmor profile with neither setting, so both were dropped to shrink what a compromised Netdata container could do — `SYS_PTRACE` in particular makes process injection meaningfully easier. The container's existing read-only mount of `/var/run/docker.sock` was left as it was. If the per-process memory charts are ever found to be missing data, the capability (not the AppArmor override) is the one to try re-adding first — it's left commented out in place in the compose file for exactly that.
+
+### Raising AdGuard's memory limit
+
+AdGuard's `mem_limit` was raised from 1g to 2g. This wasn't a response to AdGuard actually hitting the old ceiling — it was a precautionary bump, made because the box has memory to spare and there's no upside to leaving AdGuard, the one service every device on the LAN depends on for DNS, running that close to a limit for no real reason.
+
+A separate, not-yet-applied change is noted directly in the compose file: switching to `network_mode: host` would let AdGuard assign clients stable IDs by MAC address (reading the ARP table) instead of by IP, which would be more reliable on a LAN with DHCP leases that occasionally rotate. It's blocked on UFW ordering: Docker's published-port DNAT for `:53`/`:80` currently bypasses UFW's filtering, but host networking would not, and turning it on today would cut LAN clients off from DNS entirely until UFW explicitly allows 53/80 from `192.168.1.0/24` first.
+
+### Upgrading Uptime Kuma from v1 to v2
+
+Upgraded `louislam/uptime-kuma` from the `:1` tag to `:2`. The v1→v2 jump runs a one-way database migration on first boot — there's no supported downgrade path once it's run — so a full copy of the pre-upgrade data directory was taken first (`kuma-data-backup-v1.23.17-*.tar.gz`, kept alongside the live data directory) before pulling the new image and letting it migrate.
+
+### Removing Minecraft from Watchtower's scope
+
+Minecraft's `com.centurylinklabs.watchtower.enable` label was flipped from `true` to `false`. The itzg Bedrock image already updates itself: `AUTO_UPDATE=true` bumps the Bedrock server binary in place inside the container on every restart, writing a pre-upgrade snapshot to `/data/backup-pre-<version>/` first for rollback safety (see the Minecraft section below). Watchtower recreating the container from a new image on top of that doesn't add anything, since the image tag was never pinned to a Bedrock version in the first place — a Watchtower-triggered recreate was just an extra container restart, with the restart risk that carries for whoever's mid-session, for no update it wasn't already getting from `AUTO_UPDATE` on its own.
+
+### Watchtower took down its own socket proxy
+
+At 10:03 on 2026-07-27, Watchtower's hourly scan found an available update for its own `socket-proxy` sidecar and did what it always does: stopped the old container and recreated it from the new image. The problem is that Watchtower reaches the Docker API *through* socket-proxy (`DOCKER_HOST=tcp://socket-proxy:2375`) — stopping socket-proxy mid-scan severed the connection Watchtower needed to bring anything back up again. socket-proxy, Homepage's separate `homepage-dockerproxy` (same image, also matched by Watchtower's default "anything with the enable label" behaviour) and Open WebUI all went down and stayed down until manually restarted.
+
+The fix was to add `com.centurylinklabs.watchtower.enable=false` to socket-proxy specifically, with a comment in the compose file spelling out why so a future update doesn't quietly re-enable it: that image now gets updated by hand (`docker compose pull socket-proxy && docker compose up -d`). Everything else Watchtower manages continues to update automatically; only the container it depends on to do so is excluded.
+
+### Automating the Tailscale IP across tailnet-bound services
+
+Homepage, Open WebUI, Duplicati and Portainer all bind to the box's Tailscale address as well as loopback (see "Binding management UIs to loopback and Tailscale only" above). That address had been hardcoded into all four compose files, which meant any change to it — a re-registration, moving networks, anything that hands the box a new Tailscale IP — would leave all four containers unable to bind, with no alert and no obvious symptom beyond `docker ps` still showing them as healthy despite nothing actually being published.
+
+`homelab/scripts/sync-tailnet-ip.sh` fixes this by running from cron (`@reboot` and every 15 minutes) and treating the live `tailscale ip -4` output as the source of truth. It writes the current address into each project's `.env` as `TAILNET_IP` (which the compose files interpolate) and only touches a project if something's actually drifted: the `.env` value is stale, the container isn't running, or the container is running but Docker reports no published ports for it at all — the specific failure mode this script exists to catch, since a healthy-looking `docker ps` entry doesn't guarantee anything is actually reachable. A sanity check refuses to apply any address outside Tailscale's CGNAT range (`100.64.0.0/10`), so a bug that reads garbage instead of an IP fails loudly instead of quietly recreating four containers with a bad bind address.
+
+-----
+
 ## What I learned
 
 Running Docker properly in Linux is meaningfully different from using it through a GUI. Writing and editing docker-compose files directly, understanding how container networking actually works, and debugging why a container won’t start are all skills that don’t translate from clicking around a UI.
@@ -286,7 +330,7 @@ The interesting part of this setup is the Tailscale ACL configuration. Rather th
 
 UFW firewall rules were also added to ensure the Minecraft port is only reachable via the Tailscale subnet, adding a second layer of access control.
 
-The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`, `BACKUP_INTERVAL` and `BACKUP_KEEP` environment variables belong to the Java-edition image, not bedrock). Pre-upgrade snapshots are still created in `/data/backup-pre-<version>/` when `AUTO_UPDATE` bumps the Bedrock version, providing rollback safety against bad releases. Scheduled world backups are handled separately by Duplicati, which picks up the world files from the mounted `/data` volume as part of the daily 22:00 job. Watchtower labels are included so container image updates are handled automatically.
+The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`, `BACKUP_INTERVAL` and `BACKUP_KEEP` environment variables belong to the Java-edition image, not bedrock). Pre-upgrade snapshots are still created in `/data/backup-pre-<version>/` when `AUTO_UPDATE` bumps the Bedrock version, providing rollback safety against bad releases. Scheduled world backups are handled separately by Duplicati, which picks up the world files from the mounted `/data` volume as part of the daily 22:00 job. Watchtower labels were originally included so container image updates were handled automatically; see "Removing Minecraft from Watchtower's scope" above for why that label was later switched off.
 
 -----
 
@@ -294,6 +338,9 @@ The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`
 
 - Update architecture diagram to include Duplicati and Minecraft
 - Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
+- Allow LAN access to 53/80 in UFW, then switch AdGuard to `network_mode: host` for MAC-based client IDs (see "Raising AdGuard's memory limit" above)
+- Manually remove the now-unused UFW allow rules for Homepage (3000) and Open WebUI (3002) on the host (`sudo ufw status numbered` then `sudo ufw delete <n>`) — the Ansible role only adds rules from `ufw_rules`, it never retracts ones removed from the list, so these two are still live on mchomeserver even though the source of truth no longer lists them
+- Bring `homelab/scripts/sync-tailnet-ip.sh` under Ansible management instead of installing it by hand
 
 -----
 

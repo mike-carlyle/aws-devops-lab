@@ -42,7 +42,8 @@ Every push runs a GitHub Action that lints the YAML and validates each compose f
 - fail2ban guarding SSH against brute-force attempts
 - Tailnet Lock protecting against Tailscale account takeover
 - Caddy adding auth in front of services that have none
-- A Docker socket proxy limiting Watchtower to a minimal endpoint allowlist rather than full daemon access
+- Docker socket proxies limiting Watchtower and Homepage's docker widget to a minimal endpoint allowlist each, rather than full daemon access
+- Management UIs (Portainer, Duplicati, Open WebUI, Homepage) bound to loopback and the Tailscale address only — never published on the LAN — kept self-healing against Tailscale address changes by a small cron script
 - DNSSEC validation in AdGuard with a validating upstream resolver
 - Secrets kept in per-service `.env` files, out of git
 
@@ -68,7 +69,7 @@ Working through the SAA-C03 material (Stephane Maarek's course) at my own pace. 
 - Docker and container networking, including bridge vs host networking trade-offs, network isolation patterns, and per-service compose files
 - Identity and access hardening: SSH key-only authentication with per-device keypairs, UFW per-service rules, fail2ban for SSH brute-force protection, Tailnet Lock protecting against Tailscale account takeover
 - Reverse-proxy authentication using Caddy to add HTTP basic auth in front of services that lack their own
-- Docker API surface reduction using a socket proxy in front of Watchtower so its Docker access is limited to a minimal endpoint allowlist rather than full daemon access
+- Docker API surface reduction using scoped socket proxies in front of Watchtower and Homepage so each has a minimal endpoint allowlist rather than full daemon access
 - DNSSEC validation in AdGuard with a validating upstream resolver, verified end-to-end against deliberately broken-signature test domains
 - Encrypted cloud backups with Duplicati to OneDrive, verified by test restores; backup passphrases stored off-server
 - Container observability via Homepage as a service dashboard with live widgets, Netdata for deep performance metrics, and Uptime Kuma for availability monitoring and alerting
