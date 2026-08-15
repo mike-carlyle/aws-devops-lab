@@ -14,10 +14,18 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - TZ=Europe/London
       - WEBUI_AUTH=true
+      # Hardened 2026-07-06: stable signing key from .env (0600) so login sessions
+      # survive container recreates instead of a fresh random key each start.
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+    security_opt:
+      - no-new-privileges:true
     ports:
-      # 0.0.0.0:3002 — LAN reachable via the UFW allow rule; tailnet reachable
-      # via Tailscale (bypasses UFW), same pattern as the other web UIs.
-      - "3002:8080"
+      # Hardened 2026-07-06: was "3002:8080" (all interfaces / LAN-reachable).
+      # Bind to tailnet + loopback only; reach via Tailscale or the tailnet-only Caddy.
+      # 2026-08-14: tailnet address is no longer hardcoded -- TAILNET_IP is kept
+      # current in .env by ~/.local/bin/sync-tailnet-ip.sh (cron: @reboot, */15).
+      - "127.0.0.1:3002:8080"
+      - "${TAILNET_IP}:3002:8080"
     volumes:
       - ./data:/app/backend/data   # accounts, chat history, settings persist here
     networks:
