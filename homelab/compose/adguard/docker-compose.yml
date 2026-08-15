@@ -1,11 +1,15 @@
 services:
   adguardhome:
     image: adguard/adguardhome:latest
-    mem_limit: 1g
-    memswap_limit: 1g
+    mem_limit: 2g
+    memswap_limit: 2g
     pids_limit: 256
     container_name: adguardhome
     restart: unless-stopped
+    # NOTE: host networking is required for MAC-based client ids (ARP table
+    # visibility), but ufw blocks LAN access to host-bound :53/:80 -- Docker's
+    # published-port DNAT bypasses ufw, host networking does not. Re-enable
+    # network_mode: host only after allowing 53/80 from 192.168.1.0/24 in ufw.
     ports:
       - "53:53/tcp"
       - "53:53/udp"
