@@ -336,8 +336,8 @@ The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`
 
 ## What’s next
 
-- Update architecture diagram to include Duplicati and Minecraft
-- Upgrade OS and Docker storage from HDD to SSD including drive cloning and migration
+- Update architecture diagram to include Duplicati, Minecraft, fail2ban, Caddy, Homepage, Uptime Kuma, Ollama and Open WebUI — the diagram currently only shows qBittorrent, Gluetun, Jellyfin, AdGuard Home, Tailscale, Portainer, Watchtower and Netdata
+- Upgrade to Ubuntu 26.04.1 once available (expected end of August 2026)
 - Allow LAN access to 53/80 in UFW, then switch AdGuard to `network_mode: host` for MAC-based client IDs (see "Raising AdGuard's memory limit" above)
 - Manually remove the now-unused UFW allow rules for Homepage (3000) and Open WebUI (3002) on the host (`sudo ufw status numbered` then `sudo ufw delete <n>`) — the Ansible role only adds rules from `ufw_rules`, it never retracts ones removed from the list, so these two are still live on mchomeserver even though the source of truth no longer lists them
 - Bring `homelab/scripts/sync-tailnet-ip.sh` under Ansible management instead of installing it by hand
