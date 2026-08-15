@@ -18,5 +18,11 @@ services:
       - /home/mike:/source/home:ro
       - /etc:/source/etc:ro
     ports:
-      - 8200:8200
+      # Hardened 2026-07-06: was "8200:8200" (all interfaces / reachable across the LAN).
+      # This UI can read /etc and /home/mike, so bind it to tailnet + loopback only.
+      # 2026-08-14: tailnet address is no longer hardcoded -- TAILNET_IP is kept
+      # current in .env by ~/.local/bin/sync-tailnet-ip.sh (cron: @reboot, */15).
+      # Reach via Tailscale: http://$TAILNET_IP:8200
+      - "${TAILNET_IP}:8200:8200"
+      - "127.0.0.1:8200:8200"
     restart: unless-stopped
