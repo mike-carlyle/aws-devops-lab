@@ -51,6 +51,13 @@ services:
       # portainer-net: so the Portainer widget can reach Portainer's INTERNAL http
       # (http://portainer:9000) over the docker network — no host port exposure needed.
       - portainer-net
+      # cal-net: the family-calendar app is bound to 127.0.0.1 only (ADR-0030), so its
+      # /api/health is unreachable over the LAN/tailnet from here. Join the stack's internal
+      # network instead and query the container directly at http://cal-app:3000.
+      - cal-net
+      # netdata-net: Netdata is bound to 127.0.0.1:19998 only, so the alerts widget
+      # queries the container directly at http://netdata:19999 over its stack network.
+      - netdata-net
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
@@ -96,9 +103,15 @@ networks:
   watchtower-proxy:
     external: true
     name: watchtower_docker-proxy
+  cal-net:
+    external: true
+    name: family-calendar_cal-internal
   ollama-net:
     external: true
     name: ollama_default
   portainer-net:
     external: true
     name: portainer_default
+  netdata-net:
+    external: true
+    name: netdata_default

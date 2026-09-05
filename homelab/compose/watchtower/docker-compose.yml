@@ -25,7 +25,15 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - docker-proxy
+      # STATIC IP (2026-08-28). Uptime Kuma runs network_mode: host, so it cannot
+      # resolve this network's DNS names and must address the proxy by IP. Before
+      # this pin the address was whatever IPAM handed out on boot: after the
+      # 2026-08-28 kernel reboot socket-proxy and watchtower swapped .2/.3, which
+      # broke Kuma's "Minecraft" (docker host tcp://172.18.0.2:2375) and
+      # "Watchtower" monitors. .2/.3 sit OUTSIDE the ip_range dynamic pool below,
+      # so nothing else on this network can ever take them.
+      docker-proxy:
+        ipv4_address: 172.18.0.2
     labels:
       # Deliberately NOT watchtower-managed. Watchtower reaches the Docker API
       # *through* this container: if it stops socket-proxy to update it, it
@@ -45,7 +53,10 @@ services:
     depends_on:
       - socket-proxy
     networks:
-      - docker-proxy
+      # STATIC IP (2026-08-28) — see the note on socket-proxy above. Kuma's
+      # "Watchtower" monitor hits http://172.18.0.3:8080/v1/metrics.
+      docker-proxy:
+        ipv4_address: 172.18.0.3
     command: >
       --interval 3600
       --cleanup
@@ -58,6 +69,14 @@ services:
       - WATCHTOWER_HTTP_API_METRICS=true
       - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_HTTP_API_TOKEN}
       - WATCHTOWER_NOTIFICATIONS=email
+      # ⚠ error, NOT the default info/warn. Watchtower reads EVERY container's image config each
+      # scan, including ones excluded by --label-enable, and a container still running on an image
+      # that has since been deleted makes that read fail at WARN level — once an hour, forever, one
+      # email each (2026-08-21: family-calendar's cal-backup/cal-mail, 24 mails a day. Root cause
+      # fixed by version-tagging those builds; this is the backstop for the next variant).
+      # Update reports still arrive: those are sent off the session report, not the log stream —
+      # which is why the noise mails contained ONLY warning lines and no info lines.
+      - WATCHTOWER_NOTIFICATIONS_LEVEL=error
       - WATCHTOWER_NOTIFICATION_EMAIL_FROM=michael.carlyle21@gmail.com
       - WATCHTOWER_NOTIFICATION_EMAIL_TO=michael.carlyle21@gmail.com
       - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
@@ -70,3 +89,13 @@ services:
 networks:
   docker-proxy:
     driver: bridge
+    ipam:
+      config:
+        # Subnet is declared explicitly (same 172.18.0.0/16 IPAM picked before) because
+        # Docker only honours ipv4_address on networks with a USER-configured subnet.
+        # ip_range confines dynamic allocation to 172.18.1.0/24, so other members that
+        # attach here (e.g. homepage, for its Watchtower widget) get .1.x and can never
+        # collide with the .0.2/.0.3 pins above.
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+          ip_range: 172.18.1.0/24

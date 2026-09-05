@@ -12,6 +12,17 @@ services:
     # (Jellyfin, SSH, Minecraft) appear as host-originated and match
     # the existing LAN/Tailscale UFW allow rules.
     network_mode: host
+    # Explicit resolvers (2026-08-28). With network_mode: host, Docker COPIES the
+    # host's /etc/resolv.conf at container start and never refreshes it. At boot
+    # docker.service (09:48:59) and this container (09:49:00) both start BEFORE
+    # tailscaled rewrites /etc/resolv.conf for MagicDNS (09:49:08) — so Kuma froze
+    # a pre-Tailscale copy and the "Family Calendar" monitor failed every probe
+    # with getaddrinfo ENOTFOUND mchomeserver.tail114033.ts.net until manually
+    # restarted. Pinning the resolvers here makes resolv.conf independent of that
+    # 8-second boot race.
+    dns:
+      - 100.100.100.100 # Tailscale MagicDNS: resolves *.ts.net, forwards the rest
+      - 9.9.9.9         # fallback for public names if tailscaled is down
     volumes:
       - ./data:/app/data
     labels:
