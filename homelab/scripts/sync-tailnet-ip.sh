@@ -94,7 +94,10 @@ for i in "${!PROJECTS[@]}"; do
 
   # 2. Is the running container actually bound to it, and actually published?
   #    An empty .NetworkSettings.Ports on a running container means Docker
-  #    published nothing, however healthy `docker ps` looks.
+  #    published nothing, however healthy `docker ps` looks. A *partial* bind
+  #    (loopback published, tailnet not) leaves Ports non-empty, so we also
+  #    require the tailnet address to appear in the published result -- checking
+  #    HostConfig.PortBindings alone is not enough, that is only the request.
   if [[ -z $reason ]]; then
     state=$(docker inspect "$cont" --format '{{.State.Running}}' 2>/dev/null || echo missing)
     if [[ $state != true ]]; then
@@ -106,6 +109,8 @@ for i in "${!PROJECTS[@]}"; do
         reason="container not bound to $ip"
       elif [[ $published == '{}' || -z $published ]]; then
         reason="container running but no published ports"
+      elif [[ $published != *"$ip"* ]]; then
+        reason="container not publishing on $ip (partial bind)"
       fi
     fi
   fi
