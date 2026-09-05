@@ -8,13 +8,36 @@ services:
     hostname: netdata
     ports:
       - 127.0.0.1:19998:19999
-    # Hardened 2026-07-06: dropped `apparmor=unconfined` (netdata runs fine under the
-    # docker-default AppArmor profile) and the SYS_PTRACE capability, to shrink the
-    # post-compromise blast radius. The docker.sock stays read-only (below).
-    # If per-process memory charts (apps.plugin) look incomplete, re-add ONLY the
-    # capability by uncommenting the two lines below (leave apparmor at default).
-    # cap_add:
-    #   - SYS_PTRACE
+    # Hardened 2026-07-06: dropped `apparmor=unconfined` and the SYS_PTRACE capability
+    # to shrink the post-compromise blast radius. That decision was correct — KEEP IT.
+    #
+    # !! 2026-09-05 CORRECTION — the old advice here was actively harmful and is removed.
+    # It said: "if apps.plugin charts look incomplete, re-add ONLY the SYS_PTRACE
+    # capability, leave apparmor at default." DO NOT DO THAT. Verified empirically:
+    #   * It restores NOTHING. Under docker-default the blocker is the profile's
+    #     peer-scoped rule `ptrace (trace,tracedby,read,readby) peer="docker-default"`,
+    #     which denies ptrace toward `unconfined` (i.e. every host process). A POSIX
+    #     capability cannot alter an AppArmor policy decision. Proof: netdata reads
+    #     /host/proc/<pid>/io of another docker-default CONTAINER fine with no added
+    #     caps, but is denied on host pid 1 — same uid, same caps, only the peer label
+    #     differs.
+    #   * It would make the log flood WORSE. Most host targets currently short-circuit
+    #     at the kernel credential gate before AppArmor is consulted; CAP_SYS_PTRACE
+    #     would route them all into the LSM hook instead, multiplying the denials.
+    #   * Host per-app disk I/O is NOT recoverable cheaply anyway: apps.plugin runs
+    #     fsuid 0 but fsgid 201, so the kernel credential gate blocks it against gid-0
+    #     host daemons before AppArmor even sees the request. A real fix would need
+    #     SYS_PTRACE *plus* an AppArmor grant — strictly MORE privilege than the July
+    #     hardening removed. Not worth it for per-process disk I/O charts. Declined.
+    #
+    # The ~1.1M denials/day this generated were fixed at source instead, by slowing
+    # apps.plugin from 1s to 5s in netdata.conf (in the netdataconfig volume).
+    #
+    # Also corrected: `:ro` on a unix socket is COSMETIC, not a constraint. The mount
+    # shows ro but `test -w /var/run/docker.sock` succeeds inside the container —
+    # netdata has full read/write Docker API access. The real hardening available here
+    # is to put netdata behind the same socket-proxy pattern already used by homepage
+    # and watchtower (CONTAINERS=1, POST=0, EXEC=0). Not yet done.
     environment:
       - NETDATA_HOST_PREFIX=/host
     volumes:

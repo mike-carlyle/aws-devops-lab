@@ -1,0 +1,20 @@
+# ---------------------------------------------------------------------------
+# Added 2026-09-05.
+#
+# apps.plugin was scanning /proc every 1s. Under the docker-default AppArmor
+# profile every scan of an unconfined (host) process trips the peer-scoped
+# ptrace rule, generating ~768 kernel audit denials PER MINUTE (~1.1M/day).
+#
+# That is not merely noise: the kernel printk rate limiter drops ~86% of them,
+# and that limiter is GLOBAL to the audit path -- so it was also swallowing
+# unrelated audit records. It buried the forensics after the 4 Sep power cut.
+#
+# Slowing the scan cuts the denial rate proportionally at zero security cost.
+# Measured: 1s = 768/min, 5s = 152/min, 10s = 72/min (90% cut). 10s was chosen to
+# get under the kernel printk limiter (~120/min) so it stops dropping UNRELATED
+# audit records -- suppression fell from 86% to 17%.
+# The trade is per-application metric resolution: 10s instead of 1s, which is
+# ample for this box. Revert by deleting this section and restarting netdata.
+# ---------------------------------------------------------------------------
+[plugin:apps]
+	update every = 10
