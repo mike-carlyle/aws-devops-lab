@@ -9,10 +9,27 @@ directory should go away.
 
 | Repo path | Goes to | Applied by |
 |---|---|---|
+| `sysctl.d/99-docker-nonlocal-bind.conf` | `/etc/sysctl.d/` | by hand, then `sysctl --system` |
 | `journald.conf.d/10-size-limits.conf` | `/etc/systemd/journald.conf.d/` | `~/.local/bin/fix-log-spam.sh` |
 | `logrotate.d/rsyslog` | `/etc/logrotate.d/rsyslog` | `~/.local/bin/fix-log-spam.sh` |
 
-Both were added on 2026-09-05, after the 4 September power cut, when it emerged that
+## `99-docker-nonlocal-bind.conf` — do not skip this on a rebuild
+
+`net.ipv4.ip_nonlocal_bind=1` is **required for the box to survive a reboot**, and it is set
+by this file alone. An earlier version of this README wrongly claimed the Ansible
+`base_system` role sets it. It does not — the string does not appear anywhere under
+`homelab/ansible/`. That false pointer was worse than saying nothing, because a rebuilder
+would read it and deliberately skip the step.
+
+Without it, homepage, open-webui, duplicati and portainer try to bind the Tailscale address
+before `tailscaled` has assigned it to `tailscale0`, fail with "cannot assign requested
+address", exhaust their restart budget and stay down until started by hand. That is not
+hypothetical: it happened on 2026-08-12, when the containers gave up about 25 seconds before
+tailscaled finished coming up.
+
+## The journald and logrotate bounds
+
+Those two were added on 2026-09-05, after the 4 September power cut, when it emerged that
 netdata's `apps.plugin` had been generating ~768 AppArmor `ptrace` denials per minute
 (~1.1M/day). That flood was 86.9% of every byte in the journal, and — because the kernel
 printk rate limiter is global to the audit path — it was also silently discarding
@@ -59,7 +76,7 @@ real defence here.
 - **BIOS.** `Restore on AC power loss` must be **Always On** (factory default is Always Off).
   On this board it is directly under the **Advanced** tab, not buried in AMD CBS. See
   `../notes.md` for why this matters and how to verify it.
-- **`net.ipv4.ip_nonlocal_bind=1`** — set by the Ansible `base_system` role, not here.
+- **Tailscale itself** — install, `tailscale up`, and the three `tailscale serve` proxies are captured nowhere in this repo. A rebuilt host has no tailnet address, so every tailnet-bound service fails to bind.
 - **netdata.conf** lives inside the `netdata_netdataconfig` named volume, so it is invisible
   to both this repo and Ansible. The snippet next to the netdata compose file is a copy;
   it has to be re-appended by hand after a rebuild.
