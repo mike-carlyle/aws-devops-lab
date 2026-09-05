@@ -7,8 +7,25 @@ services:
 #    image: lscr.io/linuxserver/duplicati:latest
     container_name: duplicati
     environment:
-      - PUID=1000
-      - PGID=1000
+      # 2026-09-05: was PUID=1000/PGID=1000. A DR audit found Duplicati had been silently
+      # permission-denied on root-owned paths for ~38 consecutive runs -- including
+      # /home/mike/adguard/conf/AdGuardHome.yaml, the ENTIRE configuration of the LAN's only
+      # DNS server (admin hash, every rewrite, client IDs, filter lists), which had therefore
+      # never been backed up even once. /etc/msmtprc (the Gmail app password) was in the same
+      # position. Those denials appear only in the nightly warning stream, which had long since
+      # been normalised into noise, so nobody noticed.
+      #
+      # A backup tool cannot back up root-owned config without root read access -- keeping it
+      # unprivileged just moves the privilege to whatever process stages the files instead.
+      # THE TRADE-OFF, stated plainly: if this container is compromised it can now READ every
+      # secret under /etc and /home/mike. That is bounded by three things -- both source mounts
+      # are :ro so it cannot write to the host, the UI is bound to loopback + tailnet only
+      # (never the LAN) and is password-protected, and no docker socket is mounted.
+      #
+      # To revert: set these back to 1000 and `docker compose up -d`. AdGuard's config and
+      # /etc then silently drop out of the backup again -- check the run warnings if you do.
+      - PUID=0
+      - PGID=0
       - TZ=Europe/London
       - DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES=*
       - DUPLICATI__WEBSERVICE_PASSWORD=${DUPLICATI__WEBSERVICE_PASSWORD}
