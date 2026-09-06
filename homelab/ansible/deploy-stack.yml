@@ -6,7 +6,8 @@
 #   * Syncs docker-compose.yml plus any non-secret config files from
 #     homelab/compose/<service>/ in the repo to the runtime location,
 #     never overwriting a real .env on the host
-#   * Brings up services whose .env (if required) is already in place
+#   * Brings up services whose .env (if required) is already in place,
+#     IN CATALOGUE ORDER (see the note above `services` in group_vars/all.yml)
 #   * Reports any services held back because their .env is missing
 #
 # What this does NOT do (yet):
@@ -65,27 +66,76 @@
         label: "{{ item.name }}"
       register: env_example_state
 
-    - name: Build sets of (needs-env, has-env, wants-to-start)
+    - name: Build sets of (needs-env, has-env)
       ansible.builtin.set_fact:
         services_needing_env: "{{ env_example_state.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item.name') | list }}"
-        services_with_env:    "{{ env_state.results         | selectattr('stat.exists', 'equalto', true) | map(attribute='item.name') | list }}"
-        services_wanting_start: "{{ services | selectattr('start', 'equalto', true) | map(attribute='name') | list }}"
+        services_with_env: "{{ env_state.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item.name') | list }}"
 
-    - name: Compute ready-to-start and held-back lists
+    # ORDER MATTERS, so this filters the ORDERED `services` list rather than doing
+    # arithmetic between two unordered sets. The previous version computed
+    # `services_wanting_start | difference(...)`, and Jinja's difference/intersect are
+    # SET operations — the resulting order was incidental, so ollama could deploy after
+    # open-webui, and homepage before every project that owns the networks it joins.
+    # `reject('in', ...)` preserves the order of its left-hand sequence; the set
+    # difference below is only used to compute WHICH names to exclude, where order is
+    # genuinely irrelevant.
+    - name: Compute ready-to-start and held-back lists, preserving catalogue order
       ansible.builtin.set_fact:
-        # A service is ready to start if it wants to start AND
-        # either it doesn't require an .env, or its .env exists.
-        ready_to_start: "{{ services_wanting_start | difference(services_needing_env | difference(services_with_env)) }}"
-        held_back: "{{ services_wanting_start | intersect(services_needing_env) | difference(services_with_env) }}"
+        ready_to_start: >-
+          {{ services | selectattr('start', 'equalto', true) | map(attribute='name')
+             | reject('in', services_needing_env | difference(services_with_env)) | list }}
+        held_back: >-
+          {{ services | selectattr('start', 'equalto', true) | map(attribute='name')
+             | select('in', services_needing_env | difference(services_with_env)) | list }}
+
+    # ---------- cross-repo dependency that ordering cannot fix ----------
+
+    # homepage joins family-calendar_cal-internal as an external network, and that
+    # network is created by the family-calendar project, which lives in a DIFFERENT
+    # repository. On a rebuilt host it will not exist until that stack is deployed, and
+    # docker compose fails with a bare "network not found" that gives no hint why.
+    # Say so plainly instead. Not a hard failure: everything else still deploys.
+    - name: Check whether the family-calendar network exists (homepage depends on it)
+      ansible.builtin.command:
+        cmd: docker network inspect family-calendar_cal-internal
+      register: cal_net
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Warn that homepage cannot start until the family-calendar stack is deployed
+      ansible.builtin.debug:
+        msg:
+          - "The docker network 'family-calendar_cal-internal' does not exist."
+          - "It is owned by the family-calendar project, which is a SEPARATE repo."
+          - "homepage joins it as an external network and will fail to start until"
+          - "that stack has been deployed at least once. Everything else is unaffected."
+      when: cal_net.rc != 0
 
     # ---------- bring up services that are ready ----------
 
-    - name: Pull latest images and start each ready service
+    # AdGuard is deployed on its own, first, and WITHOUT failure tolerance. It is the
+    # LAN's only DNS: if it will not come up, that is not a partial deploy to be
+    # summarised at the end, it is a house-wide outage and the play should stop on it.
+    - name: Deploy AdGuard first — the LAN's only DNS, and a hard dependency
+      community.docker.docker_compose_v2:
+        project_src: "{{ service_root }}/adguard"
+        state: present
+        pull: missing
+      when: "'adguard' in ready_to_start"
+
+    # Everything else tolerates a single failure so that one broken service does not
+    # prevent the remaining ones deploying — the old behaviour, where a failing
+    # homepage aborted the play, left every later service undeployed. The play still
+    # FAILS at the end, so a partial deploy is never mistaken for a good one.
+    - name: Deploy the remaining ready services, in catalogue order
       community.docker.docker_compose_v2:
         project_src: "{{ service_root }}/{{ item }}"
         state: present
         pull: missing
-      loop: "{{ ready_to_start }}"
+      loop: "{{ ready_to_start | reject('equalto', 'adguard') | list }}"
+      register: deploy_results
+      ignore_errors: true
 
     - name: Report on services held back due to missing .env
       ansible.builtin.debug:
@@ -95,3 +145,12 @@
           - "Action: copy .env.example to .env in each service's runtime directory,"
           - "        fill in the secret values, and re-run this playbook."
       when: held_back | length > 0
+
+    - name: Fail if any service failed to deploy
+      ansible.builtin.fail:
+        msg: >-
+          These services failed to deploy:
+          {{ deploy_results.results | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}.
+          Every other service was deployed. Re-run after fixing them.
+      when: >-
+        deploy_results.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | list | length > 0

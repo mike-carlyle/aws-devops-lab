@@ -4,6 +4,10 @@
 #
 # NOTE: a newer kernel only becomes active after a reboot; this role does not
 # reboot the host — schedule that separately after a provisioning run.
+#
+# 2026-09-06: also owns the two host settings a rebuild used to miss entirely —
+# net.ipv4.ip_nonlocal_bind and systemd-resolved's stub listener. Both were
+# hand-edits on the live box, recorded in homelab/system/ but applied by nothing.
 
 - name: Install the HWE kernel meta-package (newer kernel for current hardware)
   ansible.builtin.apt:
@@ -17,3 +21,90 @@
       - lm-sensors
       - smartmontools
     state: present
+
+# ---------------------------------------------------------------------------
+# net.ipv4.ip_nonlocal_bind — REQUIRED for the box to survive a reboot.
+#
+# homepage, open-webui, duplicati and portainer publish their ports on the
+# Tailscale address as well as loopback. On boot Docker can try to bind those
+# ports before tailscaled has assigned the address to tailscale0; the bind fails
+# with "cannot assign requested address" and restart: unless-stopped gives up
+# after its retry budget, leaving all four down until started by hand. That is
+# not hypothetical — it happened on 2026-08-12, when the containers gave up
+# about 25 seconds before tailscaled finished coming up.
+#
+# Deliberately a plain file copy and NOT ansible.posix.sysctl. The sysctl module
+# manages the key=value line only; pairing it with a copy of the commented file
+# makes the two tasks rewrite each other on every run and the role never
+# converges. The file is the single source of truth and is shipped from
+# homelab/system/ rather than duplicated into this role, so there is only ever
+# one copy of it in the repo.
+# ---------------------------------------------------------------------------
+
+- name: Install the ip_nonlocal_bind sysctl (needed before tailscaled is up)
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../system/sysctl.d/99-docker-nonlocal-bind.conf"
+    dest: /etc/sysctl.d/99-docker-nonlocal-bind.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl settings
+
+# ---------------------------------------------------------------------------
+# systemd-resolved: free port 53 so AdGuard can bind it.
+# ---------------------------------------------------------------------------
+
+- name: Ensure the systemd-resolved drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the resolver drop-in (upstreams + stub listener off)
+  ansible.builtin.template:
+    src: 10-homelab-dns.conf.j2
+    dest: /etc/systemd/resolved.conf.d/10-homelab-dns.conf
+    owner: root
+    group: root
+    mode: "0644"
+  # No notify, on purpose — see the probe below.
+
+# The restart decision is driven by RUNNING STATE, not by whether the file above
+# changed. Two reasons. First, restarting systemd-resolved on this live host is
+# the single most dangerous thing in this role: AdGuard is the LAN's only DNS,
+# and it already holds :53. Second, a state-driven check converges — a run that
+# died before handlers flushed still does the right thing next time, whereas a
+# file-change trigger would have been consumed and lost.
+#
+# On mchomeserver today the stub is already off, so this is false, nothing
+# notifies, and the drop-in is a pure rebuild artefact that takes effect at the
+# next natural reboot with byte-identical settings. On a fresh host the stub IS
+# holding :53, so the restart happens and AdGuard can then bind.
+- name: Check whether the resolved stub listener still holds port 53
+  ansible.builtin.command:
+    cmd: ss -H -lntu
+  register: base_system_listen_sockets
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Restart systemd-resolved only if its stub is actually holding port 53
+  ansible.builtin.debug:
+    msg: >-
+      systemd-resolved's stub listener is holding port 53; scheduling a restart so
+      AdGuard can bind it. This is expected on a fresh host and should never happen
+      on the established one.
+  # Matching the bare address, not "127.0.0.53:53" — ss renders the stub socket
+  # interface-scoped as "127.0.0.53%lo:53", so a literal match on the latter would
+  # silently never fire and a fresh host would never get its restart. -l means the
+  # address cannot appear here as a remote peer.
+  changed_when: "'127.0.0.53' in base_system_listen_sockets.stdout"
+  notify: Restart systemd-resolved
+
+- name: Ensure systemd-resolved is enabled and running
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    enabled: true
+    state: started

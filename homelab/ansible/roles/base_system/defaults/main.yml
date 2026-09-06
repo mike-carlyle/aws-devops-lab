@@ -1,0 +1,5 @@
+---
+# Upstream resolvers for systemd-resolved. These are the HOST's resolvers, not the
+# LAN's — LAN clients are served by AdGuard, which does its own upstream resolution.
+# Quad9 primary + secondary, matching what the box has run since it was built.
+base_system_resolved_dns: "9.9.9.9 149.112.112.112"

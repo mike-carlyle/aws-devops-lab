@@ -100,6 +100,21 @@ ufw_rules:
 # 'start' controls whether 'docker compose up -d' is invoked. Set to false for
 # services that should stay stopped (e.g. vpn-stack is intentionally inactive)
 # or services without a real .env in place yet.
+# ORDER IS SIGNIFICANT (2026-09-06). deploy-stack.yml deploys these in list order,
+# because several services join docker networks that ANOTHER project owns and creates.
+# homepage is the awkward one: it joins watchtower_docker-proxy, ollama_default,
+# portainer_default and netdata_default as `external: true`, and every one of those is
+# created by that service's own compose project. It used to sit at index 4, ahead of all
+# four owners, so on a fresh host it could never start -- and its failure aborted the
+# whole play, so nothing after it deployed either. It now sits after watchtower.
+#
+# adguard stays FIRST deliberately: it is the LAN's only DNS, so it should come up before
+# anything else and its failure should stop the play (see deploy-stack.yml).
+#
+# NOT SOLVED BY ORDERING: homepage also joins family-calendar_cal-internal, which is owned
+# by the family-calendar project in a SEPARATE repo. Until that stack is deployed, homepage
+# cannot start on a rebuilt host. deploy-stack.yml checks for this and says so plainly
+# rather than failing with a bare docker error.
 services:
   - name: adguard
     start: true
@@ -108,8 +123,6 @@ services:
   - name: duplicati
     start: true
   - name: fail2ban
-    start: true
-  - name: homepage
     start: true
   - name: jellyfin
     start: true
@@ -126,6 +139,10 @@ services:
   - name: uptime-kuma
     start: true
   - name: watchtower
+    start: true
+  # After its four network owners (netdata, ollama, portainer, watchtower) -- see the
+  # note above the list.
+  - name: homepage
     start: true
   - name: vpn-stack
     start: false   # currently stopped; flip to true to bring qBittorrent + Gluetun back up

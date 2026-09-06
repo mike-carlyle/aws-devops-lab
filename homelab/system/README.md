@@ -1,25 +1,34 @@
 # Host system config
 
-Files under `/etc` on mchomeserver that are load-bearing but not yet managed by Ansible.
-They are captured here so a rebuilt host can be brought back to the same state by hand.
+Files under `/etc` on mchomeserver that are load-bearing and would otherwise exist only as
+hand-edits on the live box. They are captured here so a rebuilt host can be brought back to
+the same state.
 
-Like `homelab/scripts/`, these are **copy-into-place-by-hand** for now. When host
-provisioning grows to cover them, they should move into an Ansible role and this
-directory should go away.
+This directory is the **single source of truth** for these files, including the ones Ansible
+now applies — the `base_system` role reads `sysctl.d/99-docker-nonlocal-bind.conf` from here
+rather than keeping its own copy, so the repo never holds two versions that can drift apart.
+Check the "Applied by" column below before assuming a file needs copying by hand.
 
 | Repo path | Goes to | Applied by |
 |---|---|---|
-| `sysctl.d/99-docker-nonlocal-bind.conf` | `/etc/sysctl.d/` | by hand, then `sysctl --system` |
+| `sysctl.d/99-docker-nonlocal-bind.conf` | `/etc/sysctl.d/` | **Ansible** — `base_system` role (2026-09-06) |
 | `journald.conf.d/10-size-limits.conf` | `/etc/systemd/journald.conf.d/` | `~/.local/bin/fix-log-spam.sh` |
 | `logrotate.d/rsyslog` | `/etc/logrotate.d/rsyslog` | `~/.local/bin/fix-log-spam.sh` |
 
-## `99-docker-nonlocal-bind.conf` — do not skip this on a rebuild
+## `99-docker-nonlocal-bind.conf` — now applied by Ansible
 
-`net.ipv4.ip_nonlocal_bind=1` is **required for the box to survive a reboot**, and it is set
-by this file alone. An earlier version of this README wrongly claimed the Ansible
-`base_system` role sets it. It does not — the string does not appear anywhere under
-`homelab/ansible/`. That false pointer was worse than saying nothing, because a rebuilder
-would read it and deliberately skip the step.
+`net.ipv4.ip_nonlocal_bind=1` is **required for the box to survive a reboot**.
+
+**As of 2026-09-06 the `base_system` Ansible role applies this file**, so a rebuild no longer
+depends on someone remembering to copy it. The role ships THIS file rather than keeping its own
+copy, so there is only ever one version of it in the repo.
+
+(History, because the correction matters: an earlier README claimed `base_system` set this when
+it did not — a false pointer is worse than an absent one, since a rebuilder reads it and skips
+the step deliberately. That is now true rather than aspirational. The role uses a plain file copy
+and *not* `ansible.posix.sysctl`: the module manages only the `key=value` line, so pairing it with
+a copy of the commented file makes the two rewrite each other every run and the role never
+converges.)
 
 Without it, homepage, open-webui, duplicati and portainer try to bind the Tailscale address
 before `tailscaled` has assigned it to `tailscale0`, fail with "cannot assign requested

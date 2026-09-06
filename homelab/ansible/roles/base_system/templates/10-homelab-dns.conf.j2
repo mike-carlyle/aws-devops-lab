@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+#
+# Why this is a DROP-IN and not an edit to /etc/systemd/resolved.conf:
+# resolved.conf is a dpkg conffile owned by the systemd package, and this host runs
+# unattended-upgrades. On a systemd upgrade dpkg would either keep the hand-edit and
+# silently drop new distro defaults, or replace it — and replacing it resets
+# DNSStubListener to yes, which at the next boot is a LAN-WIDE DNS OUTAGE. A .conf.d
+# drop-in is not a conffile, so dpkg never touches it. Same reasoning as
+# journald.conf.d/10-size-limits.conf.
+#
+# DNSStubListener=no is the load-bearing line. At its default the stub resolver holds
+# 127.0.0.53:53, AdGuard cannot bind 0.0.0.0:53, and the LAN — which has no second
+# resolver — loses all DNS. This is the classic AdGuard/Pi-hole-on-Ubuntu failure.
+
+[Resolve]
+# DNS= is an APPENDING list, so reset it first — otherwise these stack on top of
+# whatever the main conffile lists rather than replacing it. A systemd build that
+# rejected the empty reset would log a warning and ignore the line, leaving our
+# servers appended, which is still correct.
+DNS=
+DNS={{ base_system_resolved_dns }}
+DNSStubListener=no
