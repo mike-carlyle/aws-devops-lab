@@ -9,22 +9,92 @@ Job name: **Homelab Config** · target: **OneDrive**, `Documents/Personal/Backup
 Encryption: AES · retention: `keep-time = 14D` · schedule: daily 02:00 UTC (after the 02:20
 and 02:30 database dumps, so each night's dumps are swept the same night).
 
-## ⚠ The passphrase problem — read this first
+## ⚠ The passphrase — read this first
 
 The AES passphrase is stored in `Duplicati-server.sqlite`, encrypted with
 `SETTINGS_ENCRYPTION_KEY` from `/home/mike/duplicati/.env`. Both of those files are inside the
-backup. **If the only copy of the passphrase is on this machine, the entire OneDrive archive
-is unrecoverable the moment the machine is gone** — which is precisely the scenario the
-archive exists for.
+backup, so **the copy on this machine is useless in exactly the disaster the archive exists for.**
 
-Keep the passphrase somewhere off this box: a password manager, or written down. Retrieve it
-from the UI (job → Options → the passphrase field), not from this repo — it must never be
-committed here.
+**The off-box copy is in the password manager** (confirmed 2026-09-25, and proven correct by the
+restore test below). It must never be committed here. If it is ever rotated, update the password
+manager in the same sitting and re-run the restore test.
 
-**A restore has never been performed.** As of 2026-09-05 the job's history is 173 backups and
-zero restores, so the decrypt-and-download path a real disaster needs is untested. A backup
-that has never been restored is a hypothesis. Restoring a single small file to a scratch
-directory would settle it in minutes.
+## Restoring
+
+**Last verified 2026-09-25**: two files (`adguard/conf/AdGuardHome.yaml`,
+`duplicati/docker-compose.yml`) restored straight from OneDrive with `--no-local-db`, an empty
+database and the password-manager passphrase. Both were byte-identical to the live files (sha256).
+It took 24 s after the index download. Re-run this test after any change to the passphrase,
+target or Duplicati major version. A backup that has never been restored is a hypothesis.
+
+### A. Test restore on the live box (safe, touches nothing live)
+
+This does **not** use the job's database or its stored passphrase. It is the same path a rebuilt
+box would take, so it is a real test and not a self-check.
+
+1. **Target URL.** `GET /api/v1/backup/1` masks the OneDrive `authid` as `****`, so use the
+   export endpoint with a one-time token and write the URL straight into a root-only file, never
+   to the terminal. Log in with `POST /api/v1/auth/login {"Password": …}` (the password is in
+   `.env`), then `POST /api/v1/auth/issuetoken/export` →
+   `GET /api/v1/backup/1/export?export-passwords=true&token=<token>` → `.Backup.TargetURL` →
+   `docker exec -i duplicati sh -c 'umask 077; cat > /tmp/dr-target-url'`.
+2. **Passphrase**, from the password manager, typed so it never echoes or lands in shell history:
+   ```bash
+   read -rsp 'Duplicati passphrase: ' P; echo; printf %s "$P" | docker exec -i duplicati sh -c 'umask 077; cat > /tmp/dr-pass'; unset P
+   ```
+3. **Restore** into a scratch folder with a fresh, empty database:
+   ```bash
+   docker exec duplicati sh -c 'mkdir -p /tmp/dr-restore /tmp/dr-db && PASSPHRASE=$(cat /tmp/dr-pass)      /app/duplicati/duplicati-cli restore "$(cat /tmp/dr-target-url)"      /source/home/adguard/conf/AdGuardHome.yaml /source/home/duplicati/docker-compose.yml      --restore-path=/tmp/dr-restore --no-local-db=true --dbpath=/tmp/dr-db/dr.sqlite --encryption-module=aes'
+   ```
+   Pipe the output through `sed -E 's/authid=[^& "]*/authid=<redacted>/g'` if it may be logged.
+   An exit code of `2` means "completed with warnings", and it did so on the verified run with no
+   warning text shown. It is not a failure. Look for `Restored N (...) files`.
+4. **Compare**: `sha256sum` each file under `/tmp/dr-restore/` against `/source/home/<same path>`.
+   A mismatch is only expected if the live file changed since the last 02:00 UTC run.
+5. **Clean up** (the passphrase is sitting in a file):
+   `docker exec duplicati rm -rf /tmp/dr-pass /tmp/dr-target-url /tmp/dr-restore /tmp/dr-db`
+
+### B. Real disaster: the box is gone
+
+What you need: this repo, the passphrase from the password manager, and the Microsoft account
+login for OneDrive. Nothing else from the old box.
+
+1. Bring the container up from the compose file next to this README, with a **new** `.env`:
+   generate a new `DUPLICATI__WEBSERVICE_PASSWORD` and `SETTINGS_ENCRYPTION_KEY`, and set
+   `TAILNET_IP`. The old settings key is not needed, because you are not reusing the old database.
+2. **The old OneDrive `authid` is gone with the box.** It is an OAuth token from Duplicati's
+   login service and existed only inside the encrypted job config. In the UI, go to
+   **Restore → Direct restore from backup files → Microsoft OneDrive v2**, path
+   `Documents/Personal/Backup/Homelab/`, press **AuthID** and sign in to Microsoft to get a fresh one.
+3. Enter the passphrase. Duplicati builds a temporary database from the remote index (a few
+   minutes) and then lists every version, 14 days back.
+4. Restore to a scratch location first, not over `/source`, because the source mounts are `:ro`
+   by design. Add a temporary writable bind mount (for example `/home/mike/restore:/restore`) and
+   restore there, then move things into place. The **order** matters: `adguard/` first (it is the
+   LAN's only DNS server, so nothing resolves until it is back), then `etc/`, `.ssh/` and `.config/`,
+   then the app directories.
+5. Recreate the backup job from the values at the top of this README and in "Source paths"
+   below, attach the alerting hook (next section), and run it once by hand.
+   Alternatively, restore `duplicati/config/` from the backup and reuse the old `.env`, which
+   brings the original job back whole.
+
+## Failure alerting
+
+Every run pushes its result to the Uptime Kuma push monitor **"Duplicati Backup"**, through the
+job's advanced option `--run-script-after=/config/scripts/kuma-push.sh`:
+
+- **Success** or **Warning** marks the monitor up. Warning counts as up on purpose, because every
+  run carries about 3 warnings about locked files (see below).
+- **Error**, **Fatal** or **Unknown** marks it down and emails straight away.
+- **No run at all** sends nothing, and Kuma's 26 h push window emails on the silence.
+
+The script and its push URL (`/config/scripts/kuma-push-url`, root-only, holds the token) live in
+the container's `/config`, **not in this repo**. The script always exits 0, so a Kuma problem can
+never fail a backup. Kuma runs `network_mode: host`, so the beat arrives on the host INPUT chain
+from this stack's bridge. That is why the compose file pins the subnet to `172.24.0.0/16`, and
+`group_vars/all.yml` allows port 3001 from `duplicati_cidr` only. The pin and the ufw rule are
+one mechanism, so don't change one without the other. Added 2026-09-25, after the OneDrive quota
+lapse of 2026-09-17/18 failed two nightly runs and nothing noticed.
 
 ## Source paths
 
