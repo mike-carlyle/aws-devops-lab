@@ -100,7 +100,13 @@
   # interface-scoped as "127.0.0.53%lo:53", so a literal match on the latter would
   # silently never fire and a fresh host would never get its restart. -l means the
   # address cannot appear here as a remote peer.
-  changed_when: "'127.0.0.53' in base_system_listen_sockets.stdout"
+  #
+  # Gated with `when`, not just `changed_when`: a debug task prints its msg whenever
+  # it runs, so with only changed_when the "stub is holding port 53" warning appeared
+  # on EVERY run — including on this host, where it is false and nothing restarts
+  # (first noticed in the 2026-09-25 dry run). Now it is skipped unless it is true.
+  when: "'127.0.0.53' in base_system_listen_sockets.stdout"
+  changed_when: true
   notify: Restart systemd-resolved
 
 - name: Ensure systemd-resolved is enabled and running
