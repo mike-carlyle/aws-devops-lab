@@ -45,11 +45,14 @@
         # 0600 because this file contains the Gmail App Password.
       no_log: true   # don't leak the rendered content into the log
 
-    - name: Ensure /etc/aliases routes root mail to admin
+    # msmtp expands /etc/aliases ONE level only (unlike sendmail/postfix), so every
+    # entry must point at a real address. The old "root: mike" chained to
+    # "mike: <gmail>" and would have sent Gmail a bare "mike" as the recipient.
+    - name: Ensure /etc/aliases routes root mail to Gmail
       ansible.builtin.lineinfile:
         path: /etc/aliases
         regexp: "^root:"
-        line: "root: {{ admin_user }}"
+        line: "root: {{ vault_msmtp_root_recipient }}"
         create: true
         owner: root
         group: root
@@ -61,6 +64,19 @@
         path: /etc/aliases
         regexp: "^{{ admin_user }}:"
         line: "{{ admin_user }}: {{ vault_msmtp_root_recipient }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Rebuild aliases db
+
+    # Catch-all for any other local recipient (cron mail for a system user, etc.).
+    # Without it msmtp passes the bare name through and Gmail rejects it.
+    - name: Ensure /etc/aliases has a catch-all default
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: "^default:"
+        line: "default: {{ vault_msmtp_root_recipient }}"
         create: true
         owner: root
         group: root

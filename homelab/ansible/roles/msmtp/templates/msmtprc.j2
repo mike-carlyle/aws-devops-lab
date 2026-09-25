@@ -6,7 +6,14 @@ auth          on
 tls           on
 tls_starttls  on
 tls_trust_file /etc/ssl/certs/ca-certificates.crt
-logfile       /var/log/msmtp.log
+# syslog, not a logfile: msmtp runs as whichever user sends the mail (cron jobs run as
+# mike), and a root-owned /var/log/msmtp.log is unwritable for them. Read it with
+# `journalctl -t msmtp`.
+syslog        LOG_MAIL
+# REQUIRED for the /etc/aliases entries this role writes to do anything. Without it,
+# msmtp hands a bare local name ("mike", "root") to Gmail as the recipient, and Gmail
+# rejects it, so unattended-upgrades' error mail to "mike" would never arrive.
+aliases       /etc/aliases
 
 account        gmail
 host           {{ msmtp_smtp_host }}
