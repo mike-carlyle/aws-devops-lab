@@ -7,12 +7,6 @@ color: slate
 
 # Layout: groups arranged as rows, column counts tuned to each group's size.
 layout:
-  Media:
-    style: row
-    columns: 2
-  AI:
-    style: row
-    columns: 2
   Network:
     style: row
     columns: 3
@@ -22,6 +16,12 @@ layout:
   Management:
     style: row
     columns: 4
+  Apps & Media:
+    style: row
+    columns: 3
+  AI:
+    style: row
+    columns: 2
 
 # Header style: boxed info widgets for a modern dashboard look
 headerStyle: boxedWidgets

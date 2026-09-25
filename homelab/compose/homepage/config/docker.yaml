@@ -3,4 +3,7 @@
 # See https://gethomepage.dev/configs/docker/
 
 my-docker:
-  socket: /var/run/docker.sock
+  # Hardened 2026-07-06: was `socket: /var/run/docker.sock`. Now uses the scoped,
+  # read-only homepage-dockerproxy (TCP 2375) — no raw socket mounted into homepage.
+  host: homepage-dockerproxy
+  port: 2375

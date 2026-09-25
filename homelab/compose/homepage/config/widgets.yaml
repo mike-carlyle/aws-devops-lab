@@ -5,8 +5,8 @@
 # Update latitude/longitude to your actual location for accurate forecasts.
 - openmeteo:
     label: Local
-    latitude: {{HOMEPAGE_VAR_WEATHER_LAT}}
-    longitude: {{HOMEPAGE_VAR_WEATHER_LON}}
+    latitude: "{{HOMEPAGE_VAR_WEATHER_LAT}}"
+    longitude: "{{HOMEPAGE_VAR_WEATHER_LON}}"
     timezone: Europe/London
     units: metric
     cache: 5

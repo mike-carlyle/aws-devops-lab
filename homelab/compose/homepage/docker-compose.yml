@@ -42,6 +42,9 @@ services:
       - HOMEPAGE_VAR_WATCHTOWER_TOKEN=${HOMEPAGE_VAR_WATCHTOWER_TOKEN}
       - HOMEPAGE_VAR_WEATHER_LAT=${HOMEPAGE_VAR_WEATHER_LAT}
       - HOMEPAGE_VAR_WEATHER_LON=${HOMEPAGE_VAR_WEATHER_LON}
+      # Tailnet address for the service links in services.yaml, from the same sync-tailnet-ip.sh-managed
+      # TAILNET_IP as the port binds above, so the links can't go stale when the address changes.
+      - HOMEPAGE_VAR_TAILNET_IP=${TAILNET_IP}
     # Attach to Watchtower's internal network so we can query its metrics
     # endpoint at http://watchtower:8080 without exposing it to the host.
     networks:

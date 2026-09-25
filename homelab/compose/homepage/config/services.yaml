@@ -2,53 +2,10 @@
 # Widgets read live data from each service. Credentials live in .env (mode 600)
 # and are referenced as {{HOMEPAGE_VAR_*}}.
 
-- Media:
-    - Jellyfin:
-        icon: jellyfin.svg
-        href: http://192.168.1.10:8096
-        description: Movies, TV & music — McFlix
-        server: my-docker
-        container: jellyfin
-        widget:
-          type: jellyfin
-          url: http://192.168.1.10:8096
-          key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
-          enableNowPlaying: true
-          enableBlocks: true
-          enableUser: false
-
-    - Minecraft:
-        icon: minecraft.svg
-        description: Bedrock server — Tailscale only (UDP 19132)
-        server: my-docker
-        container: Minecraft
-
-- AI:
-    - Open WebUI:
-        icon: open-webui.svg
-        href: http://192.168.1.10:3002
-        description: Chat UI for the local models (own login)
-        server: my-docker
-        container: open-webui
-
-    - Ollama:
-        icon: ollama.svg
-        href: http://192.168.1.10:3002
-        description: LLM backend — qwen2.5 7b + 14b (CPU)
-        server: my-docker
-        container: ollama
-        widget:
-          type: customapi
-          url: http://ollama:11434/api/version
-          refreshInterval: 60000
-          mappings:
-            - field: version
-              label: Version
-
 - Network:
     - AdGuard Home:
         icon: adguard-home.svg
-        href: http://192.168.1.10/
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}/
         description: Network-wide DNS ad-blocking + DNSSEC
         server: my-docker
         container: adguardhome
@@ -72,20 +29,24 @@
 - Monitoring:
     - Netdata:
         icon: netdata.svg
-        href: http://192.168.1.10:19999
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:19999
         description: Real-time system & container metrics (behind Caddy auth)
         server: my-docker
         container: netdata
+        widget:
+          type: netdata
+          # Direct container access over netdata_default (see docker-compose.yml)
+          url: http://netdata:19999
 
     - Uptime Kuma:
         icon: uptime-kuma.svg
-        href: http://192.168.1.10:3001
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:3001
         description: Service uptime monitoring with email alerts
         server: my-docker
         container: uptime-kuma
 
     - fail2ban:
-        icon: fail2ban.svg
+        icon: /icons/fail2ban.svg
         description: SSH brute-force protection (LAN + Tailscale allowlist)
         server: my-docker
         container: fail2ban
@@ -93,13 +54,13 @@
 - Management:
     - Portainer:
         icon: portainer.svg
-        href: http://192.168.1.10:9000
+        href: https://{{HOMEPAGE_VAR_TAILNET_IP}}:9443
         description: Docker container management UI
         server: my-docker
         container: portainer
         widget:
           type: portainer
-          url: http://192.168.1.10:9000
+          url: http://portainer:9000
           env: 1
           key: "{{HOMEPAGE_VAR_PORTAINER_TOKEN}}"
 
@@ -115,7 +76,7 @@
 
     - Duplicati:
         icon: duplicati.svg
-        href: http://192.168.1.10:8200
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:8200
         description: Encrypted daily backups to OneDrive
         server: my-docker
         container: duplicati
@@ -125,3 +86,88 @@
         description: Hardened Docker API proxy for Watchtower
         server: my-docker
         container: socket-proxy
+
+- Apps & Media:
+    - Wedding App:
+        icon: mdi-ring-#C9A227
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:3007
+        description: Wedding RSVP & guest site (Next.js)
+        server: my-docker
+        container: wedding-app-wedding-app-1
+        widget:
+          type: customapi
+          url: http://192.168.1.10:3007/api/health
+          refreshInterval: 60000
+          mappings:
+            - field: status
+              label: Health
+
+    - Family Calendar:
+        icon: mdi-calendar-heart-#4F8A8B
+        href: https://mchomeserver.tail114033.ts.net:8443
+        description: Household calendar & bills (Next.js) — tailnet only
+        server: my-docker
+        container: family-calendar-cal-app-1
+        widget:
+          type: customapi
+          url: http://cal-app:3000/api/health
+          refreshInterval: 60000
+          mappings:
+            - field: status
+              label: Health
+
+    - Family Calendar Worker:
+        icon: mdi-cog-clockwise-#4F8A8B
+        description: Reminder dispatch, digests & recurrence expansion
+        server: my-docker
+        container: family-calendar-cal-worker-1
+
+    - Jellyfin:
+        icon: jellyfin.svg
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:8096
+        description: Movies, TV & music — McFlix
+        server: my-docker
+        container: jellyfin
+        # Widget disabled 2026-09-10: Jellyfin auto-updated to 12.0.0 on the :latest
+        # tag and dropped the legacy Emby API surface. Homepage v2.3.0 still calls
+        # /emby/{endpoint}?api_key={key}, which now 404s with an empty body -- Homepage
+        # then JSON.parse()es "" and surfaces "API Error: Unexpected end of JSON input".
+        # The API key itself is still valid: it returns 200 against the bare paths using
+        # `Authorization: MediaBrowser Token="<key>"`. Both /emby/* (404) and the
+        # ?api_key= / X-Emby-Token auth styles (401) are gone in v12.
+        # Re-enable once Homepage ships Jellyfin 12 support (watch its release notes).
+        # widget:
+        #   type: jellyfin
+        #   url: http://192.168.1.10:8096
+        #   key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+        #   enableNowPlaying: true
+        #   enableBlocks: true
+        #   enableUser: false
+
+    - Minecraft:
+        icon: minecraft.svg
+        description: Bedrock server — Tailscale only (UDP 19132)
+        server: my-docker
+        container: Minecraft
+
+- AI:
+    - Open WebUI:
+        icon: open-webui.svg
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:3002
+        description: Chat UI for the local models (own login)
+        server: my-docker
+        container: open-webui
+
+    - Ollama:
+        icon: ollama.svg
+        href: http://{{HOMEPAGE_VAR_TAILNET_IP}}:3002
+        description: LLM backend — qwen2.5 7b + 14b (CPU)
+        server: my-docker
+        container: ollama
+        widget:
+          type: customapi
+          url: http://ollama:11434/api/version
+          refreshInterval: 60000
+          mappings:
+            - field: version
+              label: Version
