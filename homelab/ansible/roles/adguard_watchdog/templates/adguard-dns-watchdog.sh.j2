@@ -2,17 +2,54 @@
 # Managed by Ansible — do not edit by hand.
 #
 # Restart AdGuard only if it stops REPLYING on 127.0.0.1:53.
-# Any reply (even NXDOMAIN/SERVFAIL) counts as alive, so an upstream outage
-# won't false-trigger a restart. Acts only on two consecutive misses.
+#
+# The probe name is FORWARDED UPSTREAM by AdGuard, so on its own it cannot tell
+# "AdGuard is dead" apart from "AdGuard is fine but the internet is gone": with
+# no WAN no answer arrives before +timeout=2 (AdGuard's own upstream timeout is
+# much longer), so dig exits non-zero and the container looks silent. On
+# 2026-09-09 that turned a 59-minute ISP outage into 44 pointless restarts, each
+# one dumping the cache and making the next probe MORE likely to time out.
+#
+# So a failed probe now only counts when the WAN is actually reachable. During an
+# internet outage the watchdog holds off and resets its strike, meaning recovery
+# needs two fresh consecutive misses before it will act. The trade-off is
+# deliberate: while the WAN is down the watchdog is effectively suspended, and a
+# genuinely dead AdGuard would not be restarted until the internet returns. That
+# is the right way round -- during a WAN outage a restart cannot help anyway
+# (there is nothing to resolve), and it actively hurts by dropping the cache and
+# local rewrites that would otherwise still answer.
+#
+# The WAN check is deliberately generous -- ANY target replying means "up" -- so
+# that a single unreachable target can never silently disarm the watchdog against
+# a real failure. It pings raw IPs with -n so it never depends on DNS itself.
+# Cost is bounded: it runs only after a failed probe, at most 2 x 2s.
 state=/run/adguard-dns-watchdog.fail
+
+wan_up() {
+  local ip
+  for ip in 1.1.1.1 8.8.8.8; do
+    ping -n -c1 -W2 "$ip" >/dev/null 2>&1 && return 0
+  done
+  return 1
+}
+
 if dig +tries=1 +timeout=2 @127.0.0.1 health.check.adguard >/dev/null 2>&1; then
   rm -f "$state"
-else
-  if [ -f "$state" ]; then
-    logger -t adguard-watchdog "AdGuard silent on :53 twice — restarting container"
-    docker restart {{ adguard_container }}
-    rm -f "$state"
-  else
-    touch "$state"   # one strike; act on the next consecutive miss
-  fi
+  exit 0
 fi
+
+if ! wan_up; then
+  logger -t adguard-watchdog "DNS probe failed but WAN is unreachable - holding off, not restarting"
+  rm -f "$state"
+  exit 0
+fi
+
+if [ -f "$state" ]; then
+  logger -t adguard-watchdog "AdGuard silent on :53 twice with WAN up - restarting container"
+  docker restart {{ adguard_container }}
+  rm -f "$state"
+else
+  touch "$state"   # one strike; act on the next consecutive miss
+fi
+
+exit 0

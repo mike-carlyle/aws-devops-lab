@@ -10,9 +10,11 @@
 # being deployed (deploy-stack.yml). If the container isn't up yet the probe
 # simply keeps failing harmlessly until it is.
 
-- name: Install dnsutils (provides dig, used by the watchdog probe)
+- name: Install dnsutils (dig, the probe) and iputils-ping (ping, the WAN gate)
   ansible.builtin.apt:
-    name: dnsutils
+    name:
+      - dnsutils
+      - iputils-ping
     state: present
     update_cache: true
 
