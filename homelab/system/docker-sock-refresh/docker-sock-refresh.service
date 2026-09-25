@@ -1,0 +1,21 @@
+[Unit]
+Description=Restart containers left holding a stale /var/run/docker.sock bind mount
+Documentation=https://github.com/moby/moby/issues/4737
+# Fires whenever docker.service starts — which is exactly when the damage is done:
+# a docker-ce package upgrade restarts docker.socket and recreates the socket with a
+# new inode, silently severing every container that already had it bind-mounted.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/local/bin/docker-sock-refresh.sh
+# The script already waits up to 60s for the dockerd API, then restarts containers
+# with a 20s stop timeout each; give it room but never let it wedge the boot.
+TimeoutStartSec=300
+# A failure here must not fail docker.service or block the boot.
+SuccessExitStatus=0 1
+
+[Install]
+WantedBy=docker.service

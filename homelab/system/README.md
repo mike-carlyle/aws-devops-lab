@@ -14,6 +14,8 @@ Check the "Applied by" column below before assuming a file needs copying by hand
 | `sysctl.d/99-docker-nonlocal-bind.conf` | `/etc/sysctl.d/` | **Ansible** — `base_system` role (2026-09-06) |
 | `journald.conf.d/10-size-limits.conf` | `/etc/systemd/journald.conf.d/` | `~/.local/bin/fix-log-spam.sh` |
 | `logrotate.d/rsyslog` | `/etc/logrotate.d/rsyslog` | `~/.local/bin/fix-log-spam.sh` |
+| `docker-sock-refresh/docker-sock-refresh.sh` | `/usr/local/bin/` (0755 root) | **By hand**, see below |
+| `docker-sock-refresh/docker-sock-refresh.service` | `/etc/systemd/system/` | **By hand**, then `systemctl enable docker-sock-refresh` |
 
 ## `99-docker-nonlocal-bind.conf` — now applied by Ansible
 
@@ -89,3 +91,29 @@ real defence here.
 - **netdata.conf** lives inside the `netdata_netdataconfig` named volume, so it is invisible
   to both this repo and Ansible. The snippet next to the netdata compose file is a copy;
   it has to be re-appended by hand after a rebuild.
+
+## `docker-sock-refresh`: re-attach containers after a docker-ce upgrade
+
+Upgrading docker-ce restarts `docker.socket`, which recreates `/var/run/docker.sock` with a new
+inode. Every running container that bind-mounts the socket (socket-proxy, homepage-dockerproxy,
+netdata, portainer) keeps the old, deleted inode and silently loses the Docker API, while still
+reporting "healthy". This unit runs whenever `docker.service` starts. It compares each container's
+view of the socket with the host's, and restarts only the stale ones, socket-proxy first. On a
+normal boot it does nothing. It also supports `--dry-run`.
+
+The version here is the **fixed** one (2026-09-18). It judges staleness from
+`/proc/<pid>/mountinfo`, where the kernel marks an unlinked mount source `//deleted`. The first
+version statted the container's `/var/run/docker.sock` through `/proc/<pid>/root`. But netdata's
+image makes `/var/run` an *absolute* symlink to `/run`, so that path resolved against the host's
+root, and netdata always looked "ok" while it was actually cut off.
+
+Install or update:
+
+```bash
+sudo install -m 0755 homelab/system/docker-sock-refresh/docker-sock-refresh.sh /usr/local/bin/
+sudo install -m 0644 homelab/system/docker-sock-refresh/docker-sock-refresh.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable docker-sock-refresh
+sudo /usr/local/bin/docker-sock-refresh.sh --dry-run   # expect "nothing stale"
+```
+
+Not yet under Ansible, same as the scripts in `homelab/scripts/`.
