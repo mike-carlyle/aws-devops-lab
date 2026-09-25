@@ -43,3 +43,16 @@ services:
       - "${TAILNET_IP}:8200:8200"
       - "127.0.0.1:8200:8200"
     restart: unless-stopped
+
+networks:
+  default:
+    # 2026-09-25: SUBNET PINNED -- a firewall dependency, not a networking preference.
+    # /config/scripts/kuma-push.sh (Duplicati --run-script-after) pushes each run's result to the
+    # Uptime Kuma "Duplicati Backup" push monitor. Kuma runs network_mode: host, so that beat hits
+    # the host INPUT chain from THIS bridge, and ufw allows port 3001 from this subnet only.
+    # Let Docker pick a different subnet and the beat is silently dropped -> false "backup missing"
+    # alert after 26h. Same mechanism as family-calendar's pinned cal-internal network.
+    ipam:
+      config:
+        - subnet: 172.24.0.0/16
+          gateway: 172.24.0.1

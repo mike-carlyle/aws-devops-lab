@@ -23,6 +23,9 @@ docker_cidr: "172.16.0.0/12"
 # go stale. Deliberately NOT docker_cidr: that /12 would let every container on the host reach Kuma's
 # unauthenticated push endpoints and forge a green heartbeat for any monitor.
 family_calendar_cidr: "172.29.0.0/16"
+# Duplicati's bridge, pinned in compose/duplicati/docker-compose.yml for the same reason: its
+# run-script-after hook pushes each backup result to the Kuma "Duplicati Backup" monitor.
+duplicati_cidr: "172.24.0.0/16"
 
 # SMTP relay used by msmtp for system mail (cron, unattended-upgrades,
 # fail2ban notifications). Credentials come from group_vars/vault.yml.
@@ -89,6 +92,7 @@ ufw_rules:
   # Kuma runs network_mode: host, so the family-calendar backup sidecar's heartbeat arrives on the
   # host INPUT chain from its bridge address. Without this, a failed or missing backup alerts nobody.
   - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ family_calendar_cidr }}", comment: "Uptime Kuma from the family-calendar bridge (backup heartbeats)"}
+  - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ duplicati_cidr }}", comment: "Uptime Kuma from the duplicati bridge (backup heartbeats)"}
 
   # Minecraft Bedrock — Tailscale only.
   - {rule: allow, port: "19132", proto: udp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock Tailscale"}
