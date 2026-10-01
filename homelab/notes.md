@@ -348,6 +348,12 @@ The Ansible roles were updated so a future run doesn't drag the box back towards
 
 The practical gain is support: standard security updates now run to 2031 instead of 2029. The services themselves barely changed, because they run in containers and the host was already on a 7.0 HWE kernel.
 
+### Capping the Docker build cache
+
+Nothing on this host ever trimmed Docker's BuildKit build cache. Every deploy of the self-built app stacks adds to it, and by September it had reached 48.6 GB. BuildKit does have its own garbage collection, but the default limits scale with disk size, and on a 936 GB disk the cache never got near them. After a manual prune it grew back at about 3.5 GB a week.
+
+`homelab/scripts/docker-builder-prune.sh` now runs daily from cron and trims the cache, oldest first, down to 10 GB. The most recent layers survive, so the next rebuild is still fast. Setting `builder.gc` in `/etc/docker/daemon.json` would also have worked, but only after a Docker daemon restart. The cron job needs neither root nor a restart.
+
 -----
 
 ## What I learned
