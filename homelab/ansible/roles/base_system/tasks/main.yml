@@ -9,9 +9,11 @@
 # net.ipv4.ip_nonlocal_bind and systemd-resolved's stub listener. Both were
 # hand-edits on the live box, recorded in homelab/system/ but applied by nothing.
 
+# Release-aware since the 2026-10-01 upgrade to 26.04: a hardcoded
+# linux-generic-hwe-24.04 would pull the old release's HWE meta-package back in.
 - name: Install the HWE kernel meta-package (newer kernel for current hardware)
   ansible.builtin.apt:
-    name: linux-generic-hwe-24.04
+    name: "linux-generic-hwe-{{ ansible_distribution_version }}"
     state: present
     update_cache: true
 

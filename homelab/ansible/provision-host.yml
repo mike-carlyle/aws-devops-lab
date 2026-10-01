@@ -5,7 +5,7 @@
 # config, firewall rules, SSH hardening, and the on-disk config for the two
 # host-touching containers (Caddy + fail2ban).
 #
-# Runs locally on the target host (Ubuntu 24.04). Needs sudo. Install once:
+# Runs locally on the target host (Ubuntu 26.04 LTS; 24.04 until 2026-10-01). Needs sudo. Install once:
 #   sudo apt install -y ansible-core
 #   ansible-galaxy collection install -r requirements.yml
 #

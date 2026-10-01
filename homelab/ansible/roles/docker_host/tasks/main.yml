@@ -28,11 +28,23 @@
     group: root
     mode: "0644"
 
+# deb822 format since the 2026-10-01 upgrade to 26.04. do-release-upgrade
+# disables one-line .list files it cannot migrate, so the live host now uses
+# /etc/apt/sources.list.d/docker.sources -- the same file this task writes.
+# The old one-line apt_repository task would have added a duplicate docker.list.
 - name: Add the Docker CE apt repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch={{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    filename: docker
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    architectures: "{{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' }}"
+    signed_by: /etc/apt/keyrings/docker.asc
     state: present
+
+- name: Refresh the apt cache after adding the Docker repository
+  ansible.builtin.apt:
     update_cache: true
 
 - name: Install Docker CE engine, CLI, containerd, buildx and the compose plugin
