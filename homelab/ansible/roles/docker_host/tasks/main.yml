@@ -46,6 +46,8 @@
 - name: Refresh the apt cache after adding the Docker repository
   ansible.builtin.apt:
     update_cache: true
+  # A cache refresh always reports "changed"; it is not a change to the host.
+  changed_when: false
 
 - name: Install Docker CE engine, CLI, containerd, buildx and the compose plugin
   ansible.builtin.apt:
@@ -78,10 +80,7 @@
     content: |
       {
         "log-driver": "json-file",
-        "log-opts": {
-          "max-size": "10m",
-          "max-file": "3"
-        },
+        "log-opts": { "max-size": "10m", "max-file": "3" },
         "live-restore": true
       }
   notify: Reload docker daemon
