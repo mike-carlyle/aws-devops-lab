@@ -12,6 +12,16 @@ services:
       EULA: "TRUE"
       VERSION: "latest"
       AUTO_UPDATE: "true"
+    # Image default healthcheck is `mc-monitor status-bedrock`, a raknet UDP
+    # ping. Since Bedrock 1.26.52 (2026-10-01) the server runs
+    # transport=nethernet (set in data/server.properties) and no longer
+    # answers raknet, so check the NetherNet TCP signalling port instead.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/19132"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
