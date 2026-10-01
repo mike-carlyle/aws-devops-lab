@@ -32,7 +32,7 @@ services:
       # CSRF protection — must include every hostname/IP you'll access Homepage from
       # Must track TAILNET_IP too -- a stale entry here means Homepage answers the
       # request and then rejects it as a CSRF failure, which looks like a broken app.
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.10:3000,mchomeserver:3000,${TAILNET_IP}:3000,localhost:3000
+      - HOMEPAGE_ALLOWED_HOSTS=mchomeserver:3000,mchomeserver.tail114033.ts.net:3000,${TAILNET_IP}:3000,localhost:3000
       # Service API credentials — values come from .env (gitignored, mode 0600)
       - HOMEPAGE_VAR_ADGUARD_USERNAME=${HOMEPAGE_VAR_ADGUARD_USERNAME}
       - HOMEPAGE_VAR_ADGUARD_PASSWORD=${HOMEPAGE_VAR_ADGUARD_PASSWORD}
