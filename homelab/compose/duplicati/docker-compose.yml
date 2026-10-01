@@ -1,10 +1,11 @@
 services:
   duplicati:
-    image: lscr.io/linuxserver/duplicati:development
+    # 2026-10-01: back on :latest (stable). :development had been pinned to a
+    # 2.2.1.0 beta image from June; by Oct :latest (2.4.0.0 stable) was ahead of it.
+    image: lscr.io/linuxserver/duplicati:latest
     mem_limit: 2g
     memswap_limit: 2g
     pids_limit: 512
-#    image: lscr.io/linuxserver/duplicati:latest
     container_name: duplicati
     environment:
       # 2026-09-05: was PUID=1000/PGID=1000. A DR audit found Duplicati had been silently
