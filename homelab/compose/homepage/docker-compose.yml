@@ -45,11 +45,12 @@ services:
       # Tailnet address for the service links in services.yaml, from the same sync-tailnet-ip.sh-managed
       # TAILNET_IP as the port binds above, so the links can't go stale when the address changes.
       - HOMEPAGE_VAR_TAILNET_IP=${TAILNET_IP}
-    # Attach to Watchtower's internal network so we can query its metrics
-    # endpoint at http://watchtower:8080 without exposing it to the host.
+    # watchtower-api: Watchtower's metrics endpoint at http://watchtower:8080, no host port.
+    # 2026-10-01: was watchtower_docker-proxy, which also exposed socket-proxy's
+    # POST-enabled Docker API (container create = root on the host) to this container.
     networks:
       - default
-      - watchtower-proxy
+      - watchtower-api
       - ollama-net
       # portainer-net: so the Portainer widget can reach Portainer's INTERNAL http
       # (http://portainer:9000) over the docker network — no host port exposure needed.
@@ -103,9 +104,9 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
 networks:
-  watchtower-proxy:
+  watchtower-api:
     external: true
-    name: watchtower_docker-proxy
+    name: watchtower_watchtower-api
   cal-net:
     external: true
     name: family-calendar_cal-internal

@@ -57,6 +57,11 @@ services:
       # "Watchtower" monitor hits http://172.18.0.3:8080/v1/metrics.
       docker-proxy:
         ipv4_address: 172.18.0.3
+      # 2026-10-01: Homepage's Watchtower widget reaches http://watchtower:8080 over
+      # this network instead of joining docker-proxy. docker-proxy also carries
+      # socket-proxy, which allows POST (create/start containers), so any member of it
+      # can get root on the host; only watchtower may be on it.
+      watchtower-api: {}
     command: >
       --interval 3600
       --cleanup
@@ -93,9 +98,17 @@ networks:
       config:
         # Subnet is declared explicitly (same 172.18.0.0/16 IPAM picked before) because
         # Docker only honours ipv4_address on networks with a USER-configured subnet.
-        # ip_range confines dynamic allocation to 172.18.1.0/24, so other members that
-        # attach here (e.g. homepage, for its Watchtower widget) get .1.x and can never
-        # collide with the .0.2/.0.3 pins above.
+        # ip_range confines dynamic allocation to 172.18.1.0/24, so anything that ever
+        # attaches here gets .1.x and can never collide with the .0.2/.0.3 pins above.
+        # Nothing but socket-proxy and watchtower should attach (see watchtower-api).
         - subnet: 172.18.0.0/16
           gateway: 172.18.0.1
           ip_range: 172.18.1.0/24
+  # Watchtower's HTTP API (metrics) only — shared with homepage (external network
+  # `watchtower_watchtower-api` in ~/homepage). Holds NO Docker API access.
+  watchtower-api:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+          gateway: 172.30.0.1
