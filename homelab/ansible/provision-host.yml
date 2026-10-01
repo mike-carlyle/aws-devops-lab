@@ -33,11 +33,11 @@
     - name: Sanity check — target is Ubuntu
       ansible.builtin.assert:
         that:
-          - ansible_distribution == "Ubuntu"
-          - ansible_distribution_major_version | int >= 22
+          - ansible_facts['distribution'] == "Ubuntu"
+          - ansible_facts['distribution_major_version'] | int >= 22
         fail_msg: >-
           This playbook targets Ubuntu 22.04+. Detected
-          {{ ansible_distribution }} {{ ansible_distribution_version }}.
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
 
   roles:
     # Order matters: safe / idempotent first, risky stuff last so a failure

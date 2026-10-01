@@ -13,7 +13,7 @@
 # linux-generic-hwe-24.04 would pull the old release's HWE meta-package back in.
 - name: Install the HWE kernel meta-package (newer kernel for current hardware)
   ansible.builtin.apt:
-    name: "linux-generic-hwe-{{ ansible_distribution_version }}"
+    name: "linux-generic-hwe-{{ ansible_facts['distribution_version'] }}"
     state: present
     update_cache: true
 
