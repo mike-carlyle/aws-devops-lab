@@ -15,6 +15,10 @@
 # a reboot. Run it once the box is back up.
 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Ubuntu 26.04 ships uutils (Rust) coreutils; without a fixed collation its sort and
+# comm disagree on order and comm warns "not in sorted order", which can hide a
+# missing container. Pin the C locale so both agree.
+export LC_ALL=C
 BASE=/home/mike/pre-reboot-baseline.txt
 
 # Slow-starting containers (open-webui especially) are not listening yet in the first
