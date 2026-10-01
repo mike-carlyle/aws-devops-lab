@@ -94,8 +94,12 @@ ufw_rules:
   - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ family_calendar_cidr }}", comment: "Uptime Kuma from the family-calendar bridge (backup heartbeats)"}
   - {rule: allow, port: "3001", proto: tcp, from_ip: "{{ duplicati_cidr }}", comment: "Uptime Kuma from the duplicati bridge (backup heartbeats)"}
 
-  # Minecraft Bedrock — Tailscale only.
-  - {rule: allow, port: "19132", proto: udp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock Tailscale"}
+  # Minecraft Bedrock — Tailscale only. Since 1.26.52 (2026-10-01) the server
+  # only speaks NetherNet: TCP signalling on server-port 19132, then gameplay
+  # over UDP pinned by `server-udp-ports=19140-19149` in server.properties.
+  # The old raknet rule (19132/udp) was removed from the host by hand.
+  - {rule: allow, port: "19132", proto: tcp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock NetherNet signalling Tailscale"}
+  - {rule: allow, port: "19140:19149", proto: udp, from_ip: "{{ tailscale_cidr }}", comment: "Minecraft Bedrock NetherNet gameplay Tailscale"}
 
 # Services to manage. Each entry maps to a directory under both
 # {{ repo_root }}/homelab/compose/<name> (the source of truth) and
