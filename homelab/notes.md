@@ -8,7 +8,17 @@ I had an old PC I built back in 2016 sitting unused. Rather than let it gather d
 
 ## Hardware
 
-A self-built PC from 2016, repurposed as a headless Ubuntu Server. Running 24/7 on the home network at 192.168.1.10. Three PWM case fans (two intake, one exhaust) and a PWM CPU fan are configured via BIOS to ramp up with CPU temperature. At idle the CPU sits at 30 degrees or below.
+The server is now a compact mini PC, running headless Ubuntu Server 26.04 LTS 24/7 on the home network at 192.168.1.10:
+
+- **CPU:** AMD Ryzen 9 6900HX (8 cores / 16 threads)
+- **GPU:** integrated Radeon 680M (not yet used for anything; a possible future route for local LLM acceleration)
+- **RAM:** 32 GB, of which about 4 GB is reserved for the integrated GPU
+- **Storage:** 1 TB NVMe SSD, a single LVM volume
+- **Network:** wired Intel 2.5 GbE, currently linked at 1 Gb/s
+
+Under sustained all-core load (CPU-only Ollama inference, for example) the CPU settles around 75°C at roughly 45 W. That is a firmware power cap, not a thermal limit: there is about 20°C of headroom to the 95°C ceiling. A small USB fan pad under the chassis doesn't change CPU temperature or clocks; testing showed it only takes a few degrees off the memory and NVMe, which is worth having in a hot room. The BIOS is set to power back on after a power cut, so the box recovers unattended; there is no UPS yet.
+
+**History:** the homelab started on a self-built PC from 2016 (see "Hardware upgrade: PWM fans and thermal management" below). In June 2026 it moved to the current machine after the old host developed memory instability. It occasionally stopped answering DNS without dropping fully offline, so clients never failed over to a secondary resolver. The new box was built and hardened in parallel, all the stacks were synced across, and it took over the old one's address in a single evening cutover. The old PC is kept as a powered-down fallback.
 
 -----
 
@@ -155,6 +165,8 @@ The impact was visible immediately. Visiting ad-heavy sites like speedtest.net s
 ![AdGuard Home dashboard showing DNS queries and blocked requests](screenshots/adguard-dashboard.png)
 
 ### Hardware upgrade: PWM fans and thermal management
+
+*(This applies to the original 2016 server, since replaced; see Hardware above.)*
 
 The original 2016 hardware had three fans that ran at 100% constantly. This was loud and drawing more power than necessary for a server sitting at low load most of the time.
 
