@@ -308,6 +308,34 @@ Homepage, Open WebUI, Duplicati and Portainer all bind to the box's Tailscale ad
 
 `homelab/scripts/sync-tailnet-ip.sh` fixes this by running from cron (`@reboot` and every 15 minutes) and treating the live `tailscale ip -4` output as the source of truth. It writes the current address into each project's `.env` as `TAILNET_IP` (which the compose files interpolate) and only touches a project if something's actually drifted: the `.env` value is stale, the container isn't running, or the container is running but Docker reports no published ports for it at all — the specific failure mode this script exists to catch, since a healthy-looking `docker ps` entry doesn't guarantee anything is actually reachable. A sanity check refuses to apply any address outside Tailscale's CGNAT range (`100.64.0.0/10`), so a bug that reads garbage instead of an IP fails loudly instead of quietly recreating four containers with a bad bind address.
 
+### Upgrading to Ubuntu 26.04.1 LTS
+
+Ubuntu 26.04.1 shipped on 27 August 2026, but upgrades from 24.04 were held back for over a month while Canonical shipped fixes to the new Rust-based coreutils (LP #2166202). Several news articles reported the path as open as soon as 26.04.1 shipped; it wasn't. The reliable signals turned out to be `do-release-upgrade -c` on the box and the `Supported:` flag in `changelogs.ubuntu.com/meta-release-lts`, not the bug's verification tag, which was never updated even after the fix was released. The path opened on 1 October 2026 and I upgraded the same day, remotely, with nobody at home.
+
+Because the root LVM volume fills the disk, there was no room for a snapshot to roll back to, so preparation focused on making a rebuild possible instead:
+
+- Fresh `pg_dump` of both Postgres stacks, verified with `pg_restore --list`, then a manual Duplicati run so they were off-box before anything changed
+- Confirmed every compose file, systemd unit and script on the host matched this repo
+- Refreshed the snapshot that `post-reboot-check.sh` compares against
+- Wrote a runbook and recovery plan on the host itself, so it would survive the session dropping
+
+It ran in two phases, each inside `tmux` so dropped connections wouldn't matter (there were several):
+
+1. Brought 24.04 fully up to date and rebooted. This tested that the box comes back cleanly from a remote reboot before anything risky happened.
+2. Ran `do-release-upgrade`, roughly 30 minutes of install time.
+
+Three answers mattered:
+
+- **Keep the local `/etc/systemd/resolved.conf`.** It carries `DNSStubListener=no`. The packaged default turns the stub listener back on, which would have taken port 53 from AdGuard and caused a LAN-wide DNS outage at the next boot.
+- **Decline "Remove obsolete packages".** The upgrader's removal list included `containerd.io` and `tailscale`, both from third-party repos it had just disabled. Saying yes would have removed Docker's runtime and the only remote way into the box. I reviewed the 54 genuinely unneeded packages afterwards and removed them with `apt autoremove`.
+- **Decline the final reboot** until the third-party repos were back. The upgrader disables one-line `.list` files it can't migrate, so Docker and Tailscale were re-added as deb822 `.sources` files pointing at `resolute`. Both vendors publish 26.04 repos.
+
+After the final reboot, every container and port was back and DNS and Tailscale both worked. One regression showed up straight away: 26.04 replaces GNU coreutils with uutils (Rust), and its `sort` and `comm` disagree on collation, so `post-reboot-check.sh` printed "not in sorted order" warnings and could have missed a missing container. Pinning `LC_ALL=C` fixed it. Any script that pipes `sort` into `comm` or `join` needs the same. `sudo` is now `sudo-rs` as well.
+
+The Ansible roles were updated so a future run doesn't drag the box back towards 24.04. `base_system` now installs the HWE kernel meta-package for the running release instead of a hardcoded `linux-generic-hwe-24.04`. `docker_host` writes the Docker repo with `deb822_repository` (the same `docker.sources` file the live host now uses) instead of a one-line `.list` that would have duplicated it. Ansible itself moved to 13.1 (core 2.20) with the OS, and both playbooks still pass `--syntax-check`.
+
+The practical gain is support: standard security updates now run to 2031 instead of 2029. The services themselves barely changed, because they run in containers and the host was already on a 7.0 HWE kernel.
+
 -----
 
 ## What I learned
@@ -337,7 +365,6 @@ The bedrock image does not provide scheduled world backups (the `ENABLE_BACKUPS`
 ## What’s next
 
 - Update architecture diagram to include Duplicati, Minecraft, fail2ban, Caddy, Homepage, Uptime Kuma, Ollama and Open WebUI — the diagram currently only shows qBittorrent, Gluetun, Jellyfin, AdGuard Home, Tailscale, Portainer, Watchtower and Netdata
-- Upgrade to Ubuntu 26.04.1 once available (expected end of August 2026)
 - Allow LAN access to 53/80 in UFW, then switch AdGuard to `network_mode: host` for MAC-based client IDs (see "Raising AdGuard's memory limit" above)
 - Manually remove the now-unused UFW allow rules for Homepage (3000) and Open WebUI (3002) on the host (`sudo ufw status numbered` then `sudo ufw delete <n>`) — the Ansible role only adds rules from `ufw_rules`, it never retracts ones removed from the list, so these two are still live on mchomeserver even though the source of truth no longer lists them
 - Bring `homelab/scripts/sync-tailnet-ip.sh` under Ansible management instead of installing it by hand
