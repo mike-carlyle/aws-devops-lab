@@ -16,6 +16,7 @@ Check the "Applied by" column below before assuming a file needs copying by hand
 | `logrotate.d/rsyslog` | `/etc/logrotate.d/rsyslog` | `~/.local/bin/fix-log-spam.sh` |
 | `docker-sock-refresh/docker-sock-refresh.sh` | `/usr/local/bin/` (0755 root) | **By hand**, see below |
 | `docker-sock-refresh/docker-sock-refresh.service` | `/etc/systemd/system/` | **By hand**, then `systemctl enable docker-sock-refresh` |
+| `user-logrotate/home.conf` | `~/.config/logrotate/home.conf` (not `/etc`) | **By hand**; run by mike's crontab at 03:50 with state in `~/.local/state/logrotate.status` (2026-10-10) |
 
 ## `99-docker-nonlocal-bind.conf` — now applied by Ansible
 
