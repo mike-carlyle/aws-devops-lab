@@ -104,10 +104,9 @@ lapse of 2026-09-17/18 failed two nightly runs and nothing noticed.
 /source/home/.local/bin/          # the host scripts (also mirrored in homelab/scripts/)
 /source/home/.ssh/                # SSH private keys
 /source/home/adguard/             # AdGuardHome.yaml — the LAN's ONLY DNS config
-/source/home/aws-devops-lab/      /source/home/bills-tracker/    /source/home/caddy/
-/source/home/duplicati/           /source/home/fail2ban/         /source/home/family-calendar/
-/source/home/family-calendar-spike/  /source/home/homepage/      /source/home/jellyfin/
-/source/home/migration-discovery/ /source/home/minecraft/        /source/home/netdata/
+/source/home/aws-devops-lab/      /source/home/caddy/            /source/home/duplicati/
+/source/home/fail2ban/            /source/home/family-calendar/  /source/home/homepage/
+/source/home/jellyfin/            /source/home/minecraft/        /source/home/netdata/
 /source/home/ollama/              /source/home/open-webui/       /source/home/portainer/
 /source/home/qbittorrent-vpn/     /source/home/uptime-kuma/      /source/home/watchtower/
 /source/home/wedding-app/
