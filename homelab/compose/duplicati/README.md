@@ -6,8 +6,16 @@ file that is itself inside the backup it defines. This README is the paper copy,
 can be rebuilt on a fresh host.
 
 Job name: **Homelab Config** · target: **OneDrive**, `Documents/Personal/Backup/Homelab/`
-Encryption: AES · retention: `keep-time = 14D` · schedule: daily 02:00 UTC (after the 02:20
-and 02:30 database dumps, so each night's dumps are swept the same night).
+Encryption: AES · retention: `keep-time = 14D` · schedule: daily 02:00 UTC.
+
+**The schedule is UTC all year**: no Duplicati server time zone is set (`server-timezone` is
+empty), so the run does not follow BST: it is 03:00 London time in summer and 02:00 in winter.
+The two database dumps it carries off-box run at **00:20** (family-calendar) and **00:30**
+(wedding-app) London time, which is before 02:00 UTC in both seasons, so each night's dumps are
+swept the same night all year. Until 2026-10-10 they ran at 02:20 and 02:30, which was before this
+job only in BST: every winter each dump went off-box about 23.5 hours late. If you change this
+schedule or set a server time zone, re-check both dumps against it in BST **and** GMT, and keep
+every dump out of 01:00-01:59 London time (skipped in March, repeated in October).
 
 ## ⚠ The passphrase — read this first
 
@@ -169,7 +177,11 @@ run fell from **15 to 3**, and examined files rose from 21,139 to 22,156.
 - **Docker named volumes are not backed up.** Duplicati mounts only `/home` and `/etc`, never
   `/var/lib/docker/volumes/`. The wedding-app uploaded-documents volume is covered separately
   by its own backup sidecar's nightly tarball, but other named volumes are not.
-- **Local and offsite retention are both 14 days and expire together**, so corruption noticed
-  on day 15 is unrecoverable. There is no monthly or yearly tier.
+- **Offsite history is short, and how far back it reaches depends on the file.** `keep-time = 14D`
+  keeps 14 days of versions. For ordinary files (configs), that is the whole reach: a bad edit
+  noticed on day 15 is unrecoverable. The database dumps reach further, about 28-29 days, because
+  each app keeps 14 days of dumps locally and every version holds all of them: a dump stays on disk
+  for 14 days, and the last version that contains it is kept for 14 more. There is no monthly or
+  yearly tier.
 - **The crontab is not backed up.** `/var/spool/cron/crontabs/` is outside both mounts. The
   jobs are documented in the header comments of each script in `homelab/scripts/`.
