@@ -111,6 +111,7 @@ lapse of 2026-09-17/18 failed two nightly runs and nothing noticed.
 /source/home/.config/             # includes the healthchecks.io ping URL for the heartbeat
 /source/home/.local/bin/          # the host scripts (also mirrored in homelab/scripts/)
 /source/home/.ssh/                # SSH private keys
+/source/home/.claude/projects/-home-mike/memory/   # Claude Code memory only (transcripts excluded)
 /source/home/adguard/             # AdGuardHome.yaml — the LAN's ONLY DNS config
 /source/home/aws-devops-lab/      /source/home/caddy/            /source/home/duplicati/
 /source/home/fail2ban/            /source/home/family-calendar/  /source/home/homepage/
@@ -119,6 +120,10 @@ lapse of 2026-09-17/18 failed two nightly runs and nothing noticed.
 /source/home/qbittorrent-vpn/     /source/home/uptime-kuma/      /source/home/watchtower/
 /source/home/wedding-app/
 ```
+
+The live job has one more path, a private app directory, which is deliberately not named in this
+public repo. Recreating the job from this list alone would miss it, so check the job export
+(or the private notes) when rebuilding.
 
 Exclude filters:
 
